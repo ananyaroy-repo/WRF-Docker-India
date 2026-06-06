@@ -1,6 +1,6 @@
 # WRF India Downscaling - Setup & Dockerization
 ### SRIP 2026 Internship Progress Report
-**By:** Ananya | **Docker Hub:** [ananyahere/wrf-india:v2](https://hub.docker.com/r/ananyahere/wrf-india)
+**By:** Ananya | **Docker Hub:** [ananyahere/wrf-india](https://hub.docker.com/r/ananyahere/wrf-india)
 
 ---
 
@@ -17,6 +17,12 @@ This document describes the setup, compilation, and containerization of the **We
 - **Docker:** v29.4.2
 
 ---
+## Image Versions
+| Tag | Size | Description |
+|-----|------|-------------|
+| v1 | 4.37 GB | WRF + WPS + 4 India domain configs + geog data (bundled) |
+| v2 | 2.62 GB | WRF + WPS + dependencies only (configs user-mounted) |
+| v2.1 | 3.33 GB | v2 + Python visualization support (netCDF4, matplotlib, cartopy) |
 
 ## Step 1: WRF Compilation (Completed)
 
@@ -223,6 +229,71 @@ docker run -it \
   -v /path/to/WPS_GEOG:/wrf/WPS_GEOG \
   ananyahere/wrf-india:v2
 ```
+**For visualization support (recommended):**
+```bash
+docker pull ananyahere/wrf-india:v2.1
+```
+
+## Step 5: Docker Image v2.1 — Visualization Support Added
+
+Building on v2, image v2.1 adds Python-based terrain visualization capabilities directly inside the container.
+
+### What's New in v2.1
+- Python 3, pip, netCDF4, matplotlib, numpy, cartopy installed inside the image
+- `visualize.py` script included at `/wrf/visualize.py`
+- Reads `geo_em.d01.nc` (geogrid output) and produces a terrain elevation map
+
+### Updated Dockerfile (v2.1)
+```dockerfile
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    gcc gfortran g++ make wget curl git csh m4 perl \
+    pkg-config python3-dev \
+    libnetcdf-dev libnetcdff-dev libpng-dev zlib1g-dev \
+    openmpi-bin libopenmpi-dev netcdf-bin \
+    python3 python3-pip \
+    libgeos-dev libproj-dev proj-bin \
+    && apt-get clean
+
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install netCDF4 matplotlib numpy cartopy
+
+ENV NETCDF=/usr
+ENV HDF5=/usr/lib/x86_64-linux-gnu/hdf5/serial
+ENV PATH=$PATH:/usr/lib/openmpi/bin
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+ENV WRF_DIR=/wrf/WRF
+
+RUN mkdir -p /wrf/WPS_GEOG
+WORKDIR /wrf
+
+COPY WRF/ /wrf/WRF/
+COPY WPS/ /wrf/WPS/
+COPY visualize_terrain_all4.py /wrf/visualize.py
+
+ENV PATH=$PATH:/wrf/WRF/main:/wrf/WPS
+CMD ["/bin/bash"]
+```
+
+### Build Command
+```bash
+docker build -t ananyahere/wrf-india:v2.1 .
+```
+
+### How to Run Visualization
+```bash
+docker run -it \
+  -v /path/to/your/runs/d01_27km:/wrf/user-config \
+  -v /path/to/your/output:/wrf/output \
+  ananyahere/wrf-india:v2.1 bash
+```
+Inside the container:
+```bash
+python3 /wrf/visualize.py
+```
+Output: terrain elevation plot saved to `/wrf/output/` on your host machine.
 
 **Sample configs available in `/configs` folder of this repo.**
 
@@ -239,6 +310,8 @@ docker run -it \
 | Domain Config - d02 (9km Delhi) |  Complete |
 | Domain Config - d03 (3km Delhi City) |  Complete |
 | Domain Config - d04 (3km Mumbai) |  Complete |
+| Docker Image v2.1 Built (+ Python visualization) | Complete |
+| Docker Image v2.1 Pushed to Hub | Complete |
 | Docker Container Built |  Complete |
 | Docker Container Pushed to Hub |  Complete |
 | GFS Data Download & ungrib |  Pending HPC Access |
