@@ -5,9 +5,7 @@ import subprocess, os
 app = Flask(__name__)
 CORS(app)
 
-IMAGE     = "ananyahere/wrf-india:v2.1"
-GEOG_PATH = "/home/ananya/WRF_PROJECTS/DATA/geog/WPS_GEOG_LOW_RES"
-RUNS_BASE = "/home/ananya/WRF_PROJECTS/runs"
+IMAGE = "ananyahere/wrf-india:v2.1"
 
 PRESET_DOMAINS = {
     "d01_27km":           {"nc_file": "geo_em.d01.nc"},
@@ -16,10 +14,16 @@ PRESET_DOMAINS = {
     "d04_3km_mumbai":     {"nc_file": "geo_em_3km_mumbai.nc"},
 }
 
+def safe_path(path):
+    """Expand ~, resolve to absolute path. Reject empty strings."""
+    if not path or not path.strip():
+        return None
+    return os.path.abspath(os.path.expanduser(path.strip()))
+
 def safe_domain(domain):
     return os.path.basename(domain.strip().replace(" ", "_"))
 
-# ── HEALTH ───────────────────────────────────────────────────────────────────
+# ── HEALTH ────────────────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
@@ -27,26 +31,34 @@ def health():
 # ── RUN GEOGRID ───────────────────────────────────────────────────────────────
 @app.route("/run-geogrid", methods=["POST"])
 def run_geogrid():
-    data     = request.json
-    domain   = safe_domain(data.get("domain", ""))
-    namelist = data.get("namelist", "")
+    data        = request.json
+    domain      = safe_domain(data.get("domain", ""))
+    namelist    = data.get("namelist", "")
+    geog_path   = safe_path(data.get("geog_path", ""))
+    output_path = safe_path(data.get("output_path", ""))
 
     if not domain:
         return jsonify({"error": "No domain name provided"}), 400
+    if not geog_path:
+        return jsonify({"error": "No WPS_GEOG path provided"}), 400
+    if not output_path:
+        return jsonify({"error": "No output folder path provided"}), 400
+    if not os.path.isdir(geog_path):
+        return jsonify({"error": f"WPS_GEOG folder not found: {geog_path}"}), 400
 
-    config_path = f"{RUNS_BASE}/{domain}"
-    os.makedirs(config_path, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
 
-    with open(f"{config_path}/namelist.wps", "w") as f:
+    # Write namelist.wps to the output folder
+    with open(f"{output_path}/namelist.wps", "w") as f:
         f.write(namelist)
 
     nc_file = PRESET_DOMAINS.get(domain, {}).get("nc_file", "geo_em.d01.nc")
 
     cmd = (
         f"docker run --rm "
-        f"-v {config_path}:/wrf/user-config "
-        f"-v {config_path}:/wrf/output "
-        f"-v {GEOG_PATH}:/wrf/WPS_GEOG "
+        f"-v {output_path}:/wrf/user-config "
+        f"-v {output_path}:/wrf/output "
+        f"-v {geog_path}:/wrf/WPS_GEOG "
         f"{IMAGE} bash -c \""
         f"cp /wrf/user-config/namelist.wps /wrf/WPS/namelist.wps && "
         f"cd /wrf/WPS && "
@@ -59,17 +71,14 @@ def run_geogrid():
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=300
         )
-        output = result.stdout + result.stderr
-
-        # Strict success check — must see WPS completion message
+        output  = result.stdout + result.stderr
         success = "Successful completion of geogrid" in output
-
         return jsonify({
-            "output":     output,
-            "success":    success,
-            "returncode": result.returncode,
-            "nc_file":    nc_file,
-            "saved_to":   f"{config_path}/{nc_file}"
+            "output":      output,
+            "success":     success,
+            "returncode":  result.returncode,
+            "nc_file":     nc_file,
+            "saved_to":    f"{output_path}/{nc_file}"
         })
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timed out after 5 minutes"}), 408
@@ -79,23 +88,24 @@ def run_geogrid():
 # ── RUN VISUALIZATION ─────────────────────────────────────────────────────────
 @app.route("/run-visualize", methods=["POST"])
 def run_visualize():
-    data   = request.json
-    domain = safe_domain(data.get("domain", ""))
+    data        = request.json
+    domain      = safe_domain(data.get("domain", ""))
+    output_path = safe_path(data.get("output_path", ""))
 
     if not domain:
         return jsonify({"error": "No domain specified"}), 400
+    if not output_path:
+        return jsonify({"error": "No output folder path provided"}), 400
 
     nc_file = PRESET_DOMAINS.get(domain, {}).get("nc_file", "geo_em.d01.nc")
-    nc_path = f"{RUNS_BASE}/{domain}/{nc_file}"
+    nc_path = f"{output_path}/{nc_file}"
 
     if not os.path.exists(nc_path):
         return jsonify({
             "error": f"geo_em file not found at {nc_path}. Run geogrid first."
         }), 400
 
-    config_path = f"{RUNS_BASE}/{domain}"
-
-    # Write a single-domain visualize script on the fly
+    # Write a domain-specific viz script into the output folder
     viz_script = f"""
 import netCDF4 as nc
 import numpy as np
@@ -112,25 +122,26 @@ os.makedirs(out_dir, exist_ok=True)
 
 print(f"Processing: {{nc_path}}")
 ds    = nc.Dataset(nc_path)
-hgt   = ds.variables['HGT_M'][0, :, :]
-xlat  = ds.variables['XLAT_M'][0, :, :]
-xlong = ds.variables['XLONG_M'][0, :, :]
+HGT   = ds.variables['HGT_M'][0, :, :]
+XLAT  = ds.variables['XLAT_M'][0, :, :]
+XLONG = ds.variables['XLONG_M'][0, :, :]
 ds.close()
 
-print(f"  Grid shape: {{hgt.shape}}")
-print(f"  Elevation range: {{hgt.min():.1f}} — {{hgt.max():.1f}} m")
+print(f"  Grid shape: {{HGT.shape}}")
+print(f"  Elevation range: {{HGT.min():.1f}} — {{HGT.max():.1f}} m")
 
-fig = plt.figure(figsize=(10, 8))
-ax  = plt.axes(projection=ccrs.PlateCarree())
-ax.add_feature(cfeature.COASTLINE.with_scale('10m'), linewidth=0.8)
-ax.add_feature(cfeature.BORDERS.with_scale('10m'),   linewidth=0.5)
-ax.add_feature(cfeature.STATES.with_scale('10m'),    linewidth=0.3, alpha=0.5)
-
-im = ax.pcolormesh(xlong, xlat, hgt, cmap='terrain',
-                   transform=ccrs.PlateCarree(), vmin=0)
-plt.colorbar(im, ax=ax, label='Elevation (m)', shrink=0.8)
-ax.set_title(f'Terrain Height — {domain}')
-ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
+fig, ax = plt.subplots(figsize=(10, 7),
+                       subplot_kw={{'projection': ccrs.PlateCarree()}})
+cf = ax.contourf(XLONG, XLAT, HGT,
+                 levels=30, cmap='terrain',
+                 transform=ccrs.PlateCarree())
+plt.colorbar(cf, ax=ax, label='Elevation (m)')
+ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+ax.add_feature(cfeature.BORDERS,   linewidth=0.5, linestyle='--')
+ax.add_feature(cfeature.STATES,    linewidth=0.3, linestyle=':')
+ax.set_title('Terrain Height — {domain}')
+gl = ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
+gl.right_labels = False
 
 out_path = f'{{out_dir}}/terrain_{domain}.png'
 plt.savefig(out_path, dpi=150, bbox_inches='tight')
@@ -139,34 +150,33 @@ print(f"  Saved: {{out_path}}")
 print("Done.")
 """
 
-    # Write the script to the domain folder so it can be mounted
-    script_path = f"{config_path}/viz_run.py"
+    script_path = f"{output_path}/viz_run.py"
     with open(script_path, "w") as f:
         f.write(viz_script)
 
     cmd = (
         f"docker run --rm "
-        f"-v {config_path}:/wrf/user-config "
-        f"-v {config_path}:/wrf/output "
+        f"-v {output_path}:/wrf/user-config "
+        f"-v {output_path}:/wrf/output "
         f"{IMAGE} python3 /wrf/user-config/viz_run.py 2>&1"
     )
 
     try:
-        result = subprocess.run(
+        result  = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=300
         )
-        output  = result.stdout + result.stderr
-        success = result.returncode == 0 and "Done." in output
+        out     = result.stdout + result.stderr
+        success = result.returncode == 0 and "Done." in out
 
-        # Only return PNGs from THIS domain folder
         png_files = []
-        if os.path.exists(config_path):
-            for f in sorted(os.listdir(config_path)):
-                if f.startswith("terrain_") and f.endswith(".png"):
-                    png_files.append(f"/image/{domain}/{f}")
+        expected  = f"terrain_{domain}.png"
+        if os.path.exists(f"{output_path}/{expected}"):
+            # Pass full output_path encoded in the URL so serve_image can find it
+            encoded = output_path.replace("/", "__SLASH__")
+            png_files.append(f"/image/{encoded}/{expected}")
 
         return jsonify({
-            "output":    output,
+            "output":    out,
             "success":   success,
             "png_files": png_files
         })
@@ -176,13 +186,15 @@ print("Done.")
         return jsonify({"error": str(e)}), 500
 
 # ── SERVE PNG IMAGES ──────────────────────────────────────────────────────────
-@app.route("/image/<domain>/<filename>")
-def serve_image(domain, filename):
+@app.route("/image/<encoded_path>/<filename>")
+def serve_image(encoded_path, filename):
     if not filename.endswith(".png"):
         return "Not allowed", 403
-    filepath = f"{RUNS_BASE}/{domain}/{filename}"
+    # Decode the path back from __SLASH__ encoding
+    real_path = encoded_path.replace("__SLASH__", "/")
+    filepath  = f"{real_path}/{filename}"
     if not os.path.exists(filepath):
-        return "Not found", 404
+        return f"Not found: {filepath}", 404
     return send_file(filepath, mimetype="image/png")
 
 if __name__ == "__main__":

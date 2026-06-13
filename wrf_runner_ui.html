@@ -840,14 +840,21 @@ function generate() {
   const out      = document.getElementById('output_path').value.trim();
   const img      = document.getElementById('docker_image').value.trim();
 
+  // Read domain key — from dropdown (presets) or text input (custom)
+  const domainSel    = document.getElementById('domain_key');
+  const domainCustom = document.getElementById('domain_key_custom');
+  const domain = domainSel.style.display === 'none'
+                   ? domainCustom.value.trim()
+                   : domainSel.value;
+
   if (!dx_km || dx_km <= 0)    { showError('Please enter a valid grid spacing (km).'); return; }
   if (isNaN(lat) || isNaN(lon)){ showError('Please enter valid latitude and longitude.'); return; }
   const dateRe = /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/;
   if (!dateRe.test(start)) { showError('Start date must be YYYY-MM-DD_HH:MM:SS'); return; }
   if (!dateRe.test(end))   { showError('End date must be YYYY-MM-DD_HH:MM:SS');   return; }
-  if (!geog || !out || !img)   { showError('Please fill in all path and image fields.'); return; }
-  if (!domain)                 { showError('Please enter a domain key name (e.g. my_custom_domain).'); return; }
-  if (out === '')              { showError('Please enter an output folder path.'); return; }
+  if (!geog || !img)           { showError('Please fill in all path and image fields.'); return; }
+  if (!out)                    { showError('Please enter an output folder path.'); return; }
+  if (!domain)                 { showError('Please enter a domain key name.'); return; }
 
   const dx_m = dx_km * 1000;
 
@@ -875,7 +882,7 @@ function generate() {
  truelat1  = 10.0,
  truelat2  = 30.0,
  stand_lon = ${lon.toFixed(1)},
- geog_data_path = '${geog}'
+ geog_data_path = '/wrf/WPS_GEOG'
 /
 &ungrib
  out_format = 'WPS',
@@ -998,7 +1005,12 @@ async function runGeogrid() {
     const res = await fetch(`${SERVER}/run-geogrid`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ domain, namelist: lastNamelist })
+      body: JSON.stringify({
+        domain,
+        namelist:    lastNamelist,
+        geog_path:   document.getElementById('geog_path').value.trim(),
+        output_path: document.getElementById('output_path').value.trim()
+      })
     });
 
     if (!res.ok) {
@@ -1054,7 +1066,12 @@ async function runVisualize() {
     const res = await fetch(`${SERVER}/run-visualize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        domain: document.getElementById('domain_key').style.display === 'none'
+          ? document.getElementById('domain_key_custom').value.trim()
+          : document.getElementById('domain_key').value,
+        output_path: document.getElementById('output_path').value.trim()
+      })
     });
 
     if (!res.ok) {
@@ -1090,7 +1107,7 @@ async function runVisualize() {
         item.className = 'gallery-item';
         item.innerHTML = `
           <div class="gallery-item-label">${escapeHtml(label)}</div>
-          <img src="${SERVER}${path}?t=${Date.now()}" alt="${escapeHtml(label)}"
+          <img src="${SERVER}${path}?runs_base=${encodeURIComponent(document.getElementById('output_path').value.trim().replace(/\/[^\/]+$/, ''))}&t=${Date.now()}" alt="${escapeHtml(label)}"
                onerror="this.style.display='none'">
         `;
         grid.appendChild(item);
