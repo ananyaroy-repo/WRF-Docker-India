@@ -1,6 +1,5 @@
 # WRF Docker Container
-FROM ubuntu:22.04
-
+FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
@@ -32,8 +31,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Upgrade pip first, then install Python libraries
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install netCDF4 matplotlib numpy cartopy
+RUN pip3 install netCDF4 matplotlib numpy cartopy --break-system-packages
 
 # Set environment variables
 ENV NETCDF=/usr
@@ -46,12 +44,13 @@ ENV WRF_DIR=/wrf/WRF
 RUN mkdir -p /wrf/WPS_GEOG
 WORKDIR /wrf
 
-# Copy compiled WRF and WPS
+# Copy compiled WRF and WPS binaries
 COPY WRF/ /wrf/WRF/
 COPY WPS/ /wrf/WPS/
 
-# Copy visualization script
-COPY visualize_terrain_all4.py /wrf/visualize.py
+# Copy visualization scripts
+COPY visualize_terrain.py /wrf/visualize.py
+COPY visualize_wrf.py /wrf/visualize_wrf.py
 
 ENV PATH=$PATH:/wrf/WRF/main:/wrf/WPS
 CMD ["/bin/bash"]
