@@ -562,6 +562,31 @@
           <input type="number" id="e_sn" value="50" min="10" step="1">
         </div>
       </div>
+      <div class="grid-3 spacer">
+        <div class="field">
+          <label>Map projection</label>
+          <select id="map_proj">
+            <option value="lambert">lambert</option>
+            <option value="mercator">mercator</option>
+            <option value="lat-lon">lat-lon</option>
+            <option value="polar">polar</option>
+          </select>
+          <span class="hint">Lambert recommended for mid-latitudes</span>
+        </div>
+        <div class="field">
+          <label>Topo data resolution</label>
+          <select id="geog_data_res">
+            <option value="default">default (high-res)</option>
+            <option value="lowres">lowres (local machines)</option>
+          </select>
+          <span class="hint">Use default if server has full WPS_GEOG</span>
+        </div>
+        <div class="field">
+          <label>Interval seconds</label>
+          <input type="number" id="interval_seconds" value="10800" min="3600" step="3600">
+          <span class="hint">10800 = 3hrs &nbsp;|&nbsp; 21600 = 6hrs</span>
+        </div>
+      </div>
       <div class="grid-2 spacer">
         <div class="field">
           <label>Start date</label>
@@ -787,7 +812,7 @@ function loadPreset(key, btn) {
     document.getElementById('ref_lon').value    = p.lon;
     document.getElementById('e_we').value       = p.we;
     document.getElementById('e_sn').value       = p.sn;
-    sel.style.display    = 'none';
+    custom.style.display = 'none';
     hint.style.display   = 'none';
     sel.style.display    = 'block';
     sel.value            = p.dx;
@@ -834,9 +859,12 @@ function generate() {
                      : parseInt(dx_sel.value);
   const we       = parseInt(document.getElementById('e_we').value);
   const sn       = parseInt(document.getElementById('e_sn').value);
-  const start    = document.getElementById('start_date').value.trim();
-  const end      = document.getElementById('end_date').value.trim();
-  const geog     = document.getElementById('geog_path').value.trim();
+  const start          = document.getElementById('start_date').value.trim();
+  const end            = document.getElementById('end_date').value.trim();
+  const map_proj       = document.getElementById('map_proj').value;
+  const geog_data_res  = document.getElementById('geog_data_res').value;
+  const interval_sec   = parseInt(document.getElementById('interval_seconds').value) || 10800;
+  const geog           = document.getElementById('geog_path').value.trim();
   const out      = document.getElementById('output_path').value.trim();
   const img      = document.getElementById('docker_image').value.trim();
 
@@ -852,6 +880,9 @@ function generate() {
   const dateRe = /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/;
   if (!dateRe.test(start)) { showError('Start date must be YYYY-MM-DD_HH:MM:SS'); return; }
   if (!dateRe.test(end))   { showError('End date must be YYYY-MM-DD_HH:MM:SS');   return; }
+  const startDt = new Date(start.replace('_', 'T'));
+  const endDt   = new Date(end.replace('_', 'T'));
+  if (endDt <= startDt)    { showError('End date must be after start date.'); return; }
   if (!geog || !img)           { showError('Please fill in all path and image fields.'); return; }
   if (!out)                    { showError('Please enter an output folder path.'); return; }
   if (!domain)                 { showError('Please enter a domain key name.'); return; }
@@ -864,7 +895,7 @@ function generate() {
  max_dom = 1,
  start_date = '${start}',
  end_date   = '${end}',
- interval_seconds = 21600
+ interval_seconds = ${interval_sec}
 /
 &geogrid
  parent_id         = 1,
@@ -873,10 +904,10 @@ function generate() {
  j_parent_start    = 1,
  e_we              = ${we},
  e_sn              = ${sn},
- geog_data_res     = 'lowres',
+ geog_data_res     = '${geog_data_res}',
  dx = ${dx_m},
  dy = ${dx_m},
- map_proj = 'lambert',
+ map_proj = '${map_proj}',
  ref_lat   = ${lat.toFixed(1)},
  ref_lon   = ${lon.toFixed(1)},
  truelat1  = 10.0,
