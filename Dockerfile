@@ -1,5 +1,5 @@
 # WRF Docker Container
-FROM ubuntu:24.04
+FROM ubuntu:resolute
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
