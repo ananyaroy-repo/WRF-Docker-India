@@ -448,6 +448,80 @@
     width: 100%; height: auto; display: block;
   }
 
+
+  /* ── Nested domain cards ── */
+  .nested-domains-wrap { margin-top: 0.875rem; }
+  .nest-intro { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height:1.6; }
+  .nest-intro code { font-family:var(--mono); font-size:11px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  .domain-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+  .domain-card {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-lg); padding: 1rem;
+  }
+  .domain-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .domain-label {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    font-family: var(--mono); background: var(--accent-dim);
+    border: 1px solid rgba(79,142,247,0.3); border-radius: 6px; padding: 3px 10px;
+  }
+  .remove-domain-btn {
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
+    padding: 4px 10px; background: var(--red-dim); color: var(--red);
+    border: 1px solid rgba(244,96,96,0.3); border-radius: 6px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .remove-domain-btn:hover { background: rgba(244,96,96,0.2); }
+  .add-domain-btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    padding: 8px 16px; width: 100%; text-align: center;
+    background: var(--surface2); border: 1px dashed var(--border2);
+    border-radius: var(--radius-lg); color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .add-domain-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nest-res-badge {
+    display: inline-block; font-size: 11px; font-family: var(--mono);
+    color: var(--green); background: var(--green-dim);
+    border: 1px solid rgba(61,214,140,0.2);
+    border-radius: 4px; padding: 2px 7px; margin-top: 4px;
+  }
+  .auto-center-btn {
+    font-family: var(--sans); font-size: 11px; padding: 5px 12px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 6px; color: var(--muted); cursor: pointer;
+    transition: all 0.15s; margin-top: 6px; width: 100%;
+  }
+  .auto-center-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── WRF namelist section ── */
+  .collapse-header {
+    display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+  }
+  .collapse-arrow { font-size: 10px; color: var(--muted); transition: transform 0.2s; }
+  .collapse-arrow.open { transform: rotate(90deg); }
+  .collapse-body { display: none; margin-top: 0.875rem; }
+  .collapse-body.open { display: block; }
+  .physics-group { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .physics-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .physics-group-label {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.07em;
+    color: var(--hint); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .wrf-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    height: 48px; padding: 0 20px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--purple-dim); color: var(--purple);
+    border: 1px solid rgba(181,123,255,0.3);
+    border-radius: var(--radius-lg); cursor: pointer; transition: all 0.15s;
+  }
+  .wrf-btn:hover { background: rgba(181,123,255,0.15); border-color: var(--purple); }
+  .wrf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   /* ── Responsive ── */
   @media (max-width: 540px) {
     .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -602,6 +676,22 @@
     </div>
   </div>
 
+  <!-- Nested domains (optional) -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num" style="font-size:14px;">↳</span>
+      <span class="section-title">Nested domains (optional)</span>
+    </div>
+    <div class="card">
+      <p class="nest-intro">
+        d01 is configured above. Add child domains here. Each must fit within its parent.<br>
+        Constraint: <code>(e_we − 1)</code> and <code>(e_sn − 1)</code> must be divisible by <code>parent_grid_ratio</code>.
+      </p>
+      <div class="domain-cards" id="domain-cards"></div>
+      <button class="add-domain-btn" onclick="addNestedDomain()">+ Add nested domain</button>
+    </div>
+  </div>
+
   <!-- Step 3: Paths -->
   <div class="section">
     <div class="section-header">
@@ -654,6 +744,122 @@
     </div>
   </div>
 
+
+  <!-- Step 5: WRF namelist (optional) -->
+  <div class="section">
+    <div class="section-header collapse-header" onclick="toggleCollapse('wrf-namelist-collapse','wrf-arrow')">
+      <span class="section-num">5</span>
+      <span class="section-title">WRF namelist.input (optional)</span>
+      <span class="collapse-arrow" id="wrf-arrow">&#9654;</span>
+    </div>
+    <div class="collapse-body" id="wrf-namelist-collapse">
+      <div class="card">
+        <div class="physics-group">
+          <div class="physics-group-label">Microphysics &amp; Radiation</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Microphysics (mp_physics)</label>
+              <select id="mp_physics">
+                <option value="3">3 — WSM3 (simple, fast)</option>
+                <option value="4">4 — WSM5</option>
+                <option value="6" selected>6 — WSM6 (recommended)</option>
+                <option value="8">8 — Thompson</option>
+                <option value="10">10 — Morrison</option>
+                <option value="2">2 — Lin et al.</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Longwave radiation (ra_lw_physics)</label>
+              <select id="ra_lw_physics">
+                <option value="1">1 — RRTM</option>
+                <option value="4" selected>4 — RRTMG (recommended)</option>
+                <option value="3">3 — CAM</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Shortwave radiation (ra_sw_physics)</label>
+              <select id="ra_sw_physics">
+                <option value="1">1 — Dudhia</option>
+                <option value="4" selected>4 — RRTMG (recommended)</option>
+                <option value="2">2 — Goddard</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Cumulus scheme (cu_physics)</label>
+              <select id="cu_physics">
+                <option value="1" selected>1 — Kain-Fritsch</option>
+                <option value="2">2 — Betts-Miller-Janjić</option>
+                <option value="6">6 — Tiedtke</option>
+                <option value="0">0 — None (for &lt;4 km domains)</option>
+              </select>
+              <span class="hint">Auto-disabled for nested domains &lt;4 km</span>
+            </div>
+          </div>
+        </div>
+        <div class="physics-group">
+          <div class="physics-group-label">Surface &amp; PBL</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Surface layer (sf_sfclay_physics)</label>
+              <select id="sf_sfclay_physics">
+                <option value="1" selected>1 — MM5 Revised</option>
+                <option value="2">2 — Eta/Mellor-Yamada</option>
+                <option value="5">5 — MYNN</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Land surface (sf_surface_physics)</label>
+              <select id="sf_surface_physics">
+                <option value="2" selected>2 — Noah</option>
+                <option value="4">4 — Noah-MP</option>
+                <option value="1">1 — Thermal diffusion (slab)</option>
+                <option value="3">3 — RUC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>PBL scheme (bl_pbl_physics)</label>
+              <select id="bl_pbl_physics">
+                <option value="1" selected>1 — YSU</option>
+                <option value="2">2 — Mellor-Yamada-Janjić</option>
+                <option value="5">5 — MYNN</option>
+                <option value="6">6 — MYJ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Land category (num_land_cat)</label>
+              <select id="num_land_cat">
+                <option value="21" selected>21 — MODIS (default)</option>
+                <option value="24">24 — MODIS modified</option>
+                <option value="28">28 — NLCD (US only)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="physics-group">
+          <div class="physics-group-label">Time &amp; Output</div>
+          <div class="grid-3">
+            <div class="field">
+              <label>Time step (seconds)</label>
+              <input type="number" id="wrf_time_step" value="162" min="1" step="1"
+                oninput="this.dataset.auto='false'">
+              <span class="hint">Rule of thumb: 6 × dx_km &nbsp;|&nbsp; auto-updates with dx</span>
+            </div>
+            <div class="field">
+              <label>History interval (minutes)</label>
+              <input type="number" id="history_interval" value="60" min="1">
+              <span class="hint">Output frequency</span>
+            </div>
+            <div class="field">
+              <label>Frames per output file</label>
+              <input type="number" id="frames_per_outfile" value="1000" min="1">
+              <span class="hint">Timesteps per wrfout file</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Error -->
   <div class="error-msg" id="error-msg"></div>
 
@@ -667,6 +873,9 @@
     </button>
     <button class="viz-btn" id="btn-viz" onclick="runVisualize()" disabled>
       &#127760;&nbsp; Visualize terrain
+    </button>
+    <button class="wrf-btn" id="btn-wrf" onclick="generateWRF()" disabled>
+      &#128196;&nbsp; Generate WRF namelist
     </button>
   </div>
 
@@ -762,6 +971,24 @@
       <div class="gallery-grid" id="gallery-grid"></div>
     </div>
 
+
+    <!-- E: WRF namelist output -->
+    <div id="wrf-output-wrap" style="display:none">
+      <hr class="divider">
+      <div class="substep-header">
+        <span class="substep-letter" style="background:var(--purple-dim);border-color:rgba(181,123,255,0.3);color:var(--purple);">E</span>
+        <span class="substep-title">WRF namelist.input</span>
+      </div>
+      <div class="code-block">
+        <div class="code-block-label">namelist.input</div>
+        <pre id="wrf-namelist-preview" style="max-height:500px;overflow-y:auto;"></pre>
+        <button class="copy-btn" onclick="copyEl('wrf-namelist-preview',this)">copy</button>
+      </div>
+      <a class="download-btn" id="wrf-download-link" download="namelist.input">
+        &#8659;&nbsp; Download namelist.input
+      </a>
+    </div>
+
   </div><!-- end output-section -->
 
 </div><!-- end page -->
@@ -844,6 +1071,7 @@ function resetTerminals() {
   document.getElementById('gallery-grid').innerHTML = '';
   document.getElementById('btn-run').disabled = true;
   document.getElementById('btn-viz').disabled = true;
+  document.getElementById('btn-wrf').disabled = true;
 }
 
 /* ── GENERATE ─────────────────────────────────────────────────── */
@@ -889,22 +1117,69 @@ function generate() {
 
   const dx_m = dx_km * 1000;
 
+  // Auto-update WRF time step when dx changes
+  const tsField = document.getElementById('wrf_time_step');
+  if (!tsField.dataset.auto || tsField.dataset.auto === 'true') {
+    tsField.value = 6 * dx_km;
+    tsField.dataset.auto = 'true';
+  }
+
+  // ── Validate nested domains ───────────────────────────────────
+  for (let i = 0; i < nestedDomains.length; i++) {
+    const d = nestedDomains[i];
+    const domNum = i + 2;
+    const parentWe = i === 0 ? we : nestedDomains[i-1].we;
+    const parentSn = i === 0 ? sn : nestedDomains[i-1].sn;
+    if (!d.we || d.we < 10) { showError(`d0${domNum}: Grid points W-E must be ≥ 10.`); return; }
+    if (!d.sn || d.sn < 10) { showError(`d0${domNum}: Grid points S-N must be ≥ 10.`); return; }
+    if ((d.we - 1) % d.ratio !== 0) {
+      const fix = Math.round((d.we - 1) / d.ratio) * d.ratio + 1;
+      showError(`d0${domNum}: (e_we − 1) = ${d.we-1} must be divisible by ratio ${d.ratio}. Try e_we = ${fix}.`);
+      return;
+    }
+    if ((d.sn - 1) % d.ratio !== 0) {
+      const fix = Math.round((d.sn - 1) / d.ratio) * d.ratio + 1;
+      showError(`d0${domNum}: (e_sn − 1) = ${d.sn-1} must be divisible by ratio ${d.ratio}. Try e_sn = ${fix}.`);
+      return;
+    }
+    if (d.iStart + (d.we - 1) / d.ratio > parentWe - 1) {
+      showError(`d0${domNum}: Domain exceeds parent in W-E. Reduce e_we or adjust i_parent_start.`); return;
+    }
+    if (d.jStart + (d.sn - 1) / d.ratio > parentSn - 1) {
+      showError(`d0${domNum}: Domain exceeds parent in S-N. Reduce e_sn or adjust j_parent_start.`); return;
+    }
+  }
+
+  // ── Build multi-domain arrays ─────────────────────────────────
+  const maxDom = 1 + nestedDomains.length;
+  const pad = (arr) => arr.map(v => String(v).padStart(4)).join(', ');
+
+  const parentIds   = [1, ...nestedDomains.map((_, i) => i + 1)];
+  const parentRats  = [1, ...nestedDomains.map(d => d.ratio)];
+  const iStarts     = [1, ...nestedDomains.map(d => d.iStart)];
+  const jStarts     = [1, ...nestedDomains.map(d => d.jStart)];
+  const eWeArr      = [we, ...nestedDomains.map(d => d.we)];
+  const eSnArr      = [sn, ...nestedDomains.map(d => d.sn)];
+  const dateList    = Array(maxDom).fill(`'${start}'`).join(', ');
+  const endList     = Array(maxDom).fill(`'${end}'`).join(', ');
+  const resList     = Array(maxDom).fill(`'${geog_data_res}'`).join(', ');
+
   lastNamelist =
 `&share
  wrf_core = 'ARW',
- max_dom = 1,
- start_date = '${start}',
- end_date   = '${end}',
+ max_dom = ${maxDom},
+ start_date = ${dateList},
+ end_date   = ${endList},
  interval_seconds = ${interval_sec}
 /
 &geogrid
- parent_id         = 1,
- parent_grid_ratio = 1,
- i_parent_start    = 1,
- j_parent_start    = 1,
- e_we              = ${we},
- e_sn              = ${sn},
- geog_data_res     = '${geog_data_res}',
+ parent_id         = ${pad(parentIds)},
+ parent_grid_ratio = ${pad(parentRats)},
+ i_parent_start    = ${pad(iStarts)},
+ j_parent_start    = ${pad(jStarts)},
+ e_we              = ${pad(eWeArr)},
+ e_sn              = ${pad(eSnArr)},
+ geog_data_res     = ${resList},
  dx = ${dx_m},
  dy = ${dx_m},
  map_proj = '${map_proj}',
@@ -931,7 +1206,7 @@ function generate() {
   ${img} bash -c \\
   "cp /wrf/user-config/namelist.wps /wrf/WPS/namelist.wps && \\
    cd /wrf/WPS && ./geogrid.exe && \\
-   cp geo_em.d01.nc /wrf/output/"`;
+   cp geo_em.d*.nc /wrf/output/"`;
 
   document.getElementById('namelist-preview').textContent = lastNamelist;
   document.getElementById('docker-cmd').textContent       = dockerCmd;
@@ -961,9 +1236,11 @@ function generate() {
   // Enable the run buttons now that we have a namelist
   document.getElementById('btn-run').disabled = false;
   document.getElementById('btn-viz').disabled = false;
+  document.getElementById('btn-wrf').disabled = false;
   resetTerminals();
   document.getElementById('btn-run').disabled = false;
   document.getElementById('btn-viz').disabled = false;
+  document.getElementById('btn-wrf').disabled = false;
 }
 
 /* ── TERMINAL HELPERS ─────────────────────────────────────────── */
@@ -1175,6 +1452,300 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+
+/* ── NESTED DOMAINS STATE ─────────────────────────────────────── */
+let nestedDomains = [];
+
+function getDx() {
+  const sel = document.getElementById('dx_km');
+  const cus = document.getElementById('dx_km_custom');
+  return sel.style.display === 'none' ? (parseInt(cus.value) || 27) : parseInt(sel.value);
+}
+
+function addNestedDomain() {
+  const d1dx = getDx();
+  const idx  = nestedDomains.length;
+  // Cumulative ratio so far
+  const cumRatio = nestedDomains.reduce((acc, d) => acc * d.ratio, 1);
+  const defaultRatio = 3;
+  const resDx = (d1dx / cumRatio / defaultRatio).toFixed(1);
+  nestedDomains.push({ ratio: 3, we: 61, sn: 61, iStart: 10, jStart: 10 });
+  renderNestedDomains();
+}
+
+function removeNestedDomain(idx) {
+  nestedDomains.splice(idx, 1);
+  renderNestedDomains();
+}
+
+function updateNested(idx, key, val) {
+  if (key === 'ratio')  nestedDomains[idx].ratio  = parseInt(val);
+  if (key === 'we')     nestedDomains[idx].we     = parseInt(val);
+  if (key === 'sn')     nestedDomains[idx].sn     = parseInt(val);
+  if (key === 'iStart') nestedDomains[idx].iStart = parseInt(val);
+  if (key === 'jStart') nestedDomains[idx].jStart = parseInt(val);
+  renderNestedDomains();
+}
+
+function autoCenter(idx) {
+  const parentWe = idx === 0
+    ? (parseInt(document.getElementById('e_we').value) || 50)
+    : nestedDomains[idx-1].we;
+  const parentSn = idx === 0
+    ? (parseInt(document.getElementById('e_sn').value) || 50)
+    : nestedDomains[idx-1].sn;
+  const d = nestedDomains[idx];
+  const iS = Math.floor((parentWe - 1 - (d.we - 1) / d.ratio) / 2) + 1;
+  const jS = Math.floor((parentSn - 1 - (d.sn - 1) / d.ratio) / 2) + 1;
+  nestedDomains[idx].iStart = Math.max(1, iS);
+  nestedDomains[idx].jStart = Math.max(1, jS);
+  renderNestedDomains();
+}
+
+function renderNestedDomains() {
+  const container = document.getElementById('domain-cards');
+  const d1dx = getDx();
+  container.innerHTML = '';
+
+  let cumRatio = 1;
+  nestedDomains.forEach((dom, idx) => {
+    cumRatio *= dom.ratio;
+    const resDx  = (d1dx / cumRatio).toFixed(1);
+    const domNum = idx + 2;
+    const card   = document.createElement('div');
+    card.className = 'domain-card';
+    card.innerHTML = `
+      <div class="domain-card-header">
+        <span class="domain-label">d0${domNum}</span>
+        <button class="remove-domain-btn" onclick="removeNestedDomain(${idx})">&#10005; Remove</button>
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <label>Parent grid ratio</label>
+          <select id="nest_ratio_${idx}" onchange="updateNested(${idx},'ratio',this.value)">
+            <option value="3" ${dom.ratio===3?'selected':''}>3x</option>
+            <option value="5" ${dom.ratio===5?'selected':''}>5x</option>
+            <option value="7" ${dom.ratio===7?'selected':''}>7x</option>
+            <option value="9" ${dom.ratio===9?'selected':''}>9x</option>
+          </select>
+          <span class="nest-res-badge">&#8594; ${resDx} km</span>
+        </div>
+        <div class="field">
+          <label>Grid points W&#8211;E</label>
+          <input type="number" id="nest_we_${idx}" value="${dom.we}" min="10" step="1"
+            oninput="updateNested(${idx},'we',this.value)">
+          <span class="hint">(e_we &#8722; 1) must be divisible by ratio</span>
+        </div>
+        <div class="field">
+          <label>Grid points S&#8211;N</label>
+          <input type="number" id="nest_sn_${idx}" value="${dom.sn}" min="10" step="1"
+            oninput="updateNested(${idx},'sn',this.value)">
+          <span class="hint">(e_sn &#8722; 1) must be divisible by ratio</span>
+        </div>
+        <div class="field">
+          <label>i_parent_start</label>
+          <input type="number" id="nest_i_${idx}" value="${dom.iStart}" min="1"
+            oninput="updateNested(${idx},'iStart',this.value)">
+        </div>
+        <div class="field">
+          <label>j_parent_start</label>
+          <input type="number" id="nest_j_${idx}" value="${dom.jStart}" min="1"
+            oninput="updateNested(${idx},'jStart',this.value)">
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="auto-center-btn" onclick="autoCenter(${idx})">
+            &#8857; Auto-center within parent
+          </button>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+/* ── COLLAPSE TOGGLE ───────────────────────────────────────────── */
+function toggleCollapse(bodyId, arrowId) {
+  document.getElementById(bodyId).classList.toggle('open');
+  document.getElementById(arrowId).classList.toggle('open');
+}
+
+/* ── GENERATE WRF NAMELIST ─────────────────────────────────────── */
+function generateWRF() {
+  // Read d01 config
+  const lat    = parseFloat(document.getElementById('ref_lat').value);
+  const lon    = parseFloat(document.getElementById('ref_lon').value);
+  const we     = parseInt(document.getElementById('e_we').value);
+  const sn     = parseInt(document.getElementById('e_sn').value);
+  const start  = document.getElementById('start_date').value.trim();
+  const end    = document.getElementById('end_date').value.trim();
+  const dx_km  = getDx();
+  const iSec   = parseInt(document.getElementById('interval_seconds').value) || 10800;
+
+  if (isNaN(lat) || isNaN(lon) || !we || !sn) {
+    showError('Configure domain settings first (Step 2), then generate WRF namelist.'); return;
+  }
+  const dateRe = /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/;
+  if (!dateRe.test(start) || !dateRe.test(end)) {
+    showError('Fix date format first (Step 2).'); return;
+  }
+
+  // Physics options
+  const mp     = document.getElementById('mp_physics').value;
+  const raLw   = document.getElementById('ra_lw_physics').value;
+  const raSw   = document.getElementById('ra_sw_physics').value;
+  const cu     = document.getElementById('cu_physics').value;
+  const sfclay = document.getElementById('sf_sfclay_physics').value;
+  const sfsurf = document.getElementById('sf_surface_physics').value;
+  const pbl    = document.getElementById('bl_pbl_physics').value;
+  const nlcat  = document.getElementById('num_land_cat').value;
+  const ts     = parseInt(document.getElementById('wrf_time_step').value) || (6 * dx_km);
+  const hist   = document.getElementById('history_interval').value;
+  const frames = document.getElementById('frames_per_outfile').value;
+
+  // Build per-domain arrays
+  const maxDom     = 1 + nestedDomains.length;
+  const pad5 = (arr) => arr.map(v => String(v).padStart(5)).join(', ');
+
+  const eWeArr     = [we,  ...nestedDomains.map(d => d.we)];
+  const eSnArr     = [sn,  ...nestedDomains.map(d => d.sn)];
+  const parentIds  = [1,   ...nestedDomains.map((_, i) => i + 1)];
+  const parentRats = [1,   ...nestedDomains.map(d => d.ratio)];
+  const iStarts    = [1,   ...nestedDomains.map(d => d.iStart)];
+  const jStarts    = [1,   ...nestedDomains.map(d => d.jStart)];
+
+  // dx per domain (metres)
+  const dxArr = [dx_km * 1000];
+  let cr = 1;
+  nestedDomains.forEach(d => { cr *= d.ratio; dxArr.push((dx_km * 1000) / cr); });
+
+  // cu_physics: disable for domains < 4 km
+  const cuArr = dxArr.map(dx => (dx / 1000 < 4 ? 0 : parseInt(cu)));
+
+  // Run duration
+  const sdt  = new Date(start.replace('_', 'T'));
+  const edt  = new Date(end.replace('_', 'T'));
+  const diff = edt - sdt;
+  const rDays = Math.floor(diff / 86400000);
+  const rHrs  = Math.floor((diff % 86400000) / 3600000);
+  const rMins = Math.floor((diff % 3600000) / 60000);
+  const rSecs = Math.floor((diff % 60000) / 1000);
+
+  const rep = (v) => Array(maxDom).fill(v).join(', ');
+  const yr  = (dt) => dt.slice(0,4);
+  const mo  = (dt) => dt.slice(5,7);
+  const dy  = (dt) => dt.slice(8,10);
+  const hr  = (dt) => dt.slice(11,13);
+
+  const nml = `&time_control
+ run_days                            = ${rDays},
+ run_hours                           = ${rHrs},
+ run_minutes                         = ${rMins},
+ run_seconds                         = ${rSecs},
+ start_year                          = ${rep(yr(start))},
+ start_month                         = ${rep(mo(start))},
+ start_day                           = ${rep(dy(start))},
+ start_hour                          = ${rep(hr(start))},
+ end_year                            = ${rep(yr(end))},
+ end_month                           = ${rep(mo(end))},
+ end_day                             = ${rep(dy(end))},
+ end_hour                            = ${rep(hr(end))},
+ interval_seconds                    = ${iSec},
+ input_from_file                     = ${rep('.true.')},
+ history_interval                    = ${rep(hist)},
+ frames_per_outfile                  = ${rep(frames)},
+ restart                             = .false.,
+ restart_interval                    = 7200,
+ io_form_history                     = 2,
+ io_form_restart                     = 2,
+ io_form_input                       = 2,
+ io_form_boundary                    = 2,
+/
+
+&domains
+ time_step                           = ${ts},
+ time_step_fract_num                 = 0,
+ time_step_fract_den                 = 1,
+ max_dom                             = ${maxDom},
+ e_we                                = ${pad5(eWeArr)},
+ e_sn                                = ${pad5(eSnArr)},
+ e_vert                              = ${rep('   45')},
+ p_top_requested                     = 5000,
+ num_metgrid_levels                  = 34,
+ num_metgrid_soil_levels             = 4,
+ dx                                  = ${pad5(dxArr)},
+ dy                                  = ${pad5(dxArr)},
+ grid_id                             = ${pad5([...Array(maxDom)].map((_,i)=>i+1))},
+ parent_id                           = ${pad5(parentIds)},
+ i_parent_start                      = ${pad5(iStarts)},
+ j_parent_start                      = ${pad5(jStarts)},
+ parent_grid_ratio                   = ${pad5(parentRats)},
+ parent_time_step_ratio              = ${pad5(parentRats)},
+ feedback                            = 1,
+ smooth_option                       = 0,
+/
+
+&physics
+ mp_physics                          = ${rep(mp)},
+ ra_lw_physics                       = ${rep(raLw)},
+ ra_sw_physics                       = ${rep(raSw)},
+ radt                                = ${rep(30)},
+ sf_sfclay_physics                   = ${rep(sfclay)},
+ sf_surface_physics                  = ${rep(sfsurf)},
+ bl_pbl_physics                      = ${rep(pbl)},
+ bldt                                = ${rep(0)},
+ cu_physics                          = ${pad5(cuArr)},
+ cudt                                = ${rep(5)},
+ isfflx                              = 1,
+ ifsnow                              = 1,
+ icloud                              = 1,
+ surface_input_source                = 3,
+ num_soil_layers                     = 4,
+ num_land_cat                        = ${nlcat},
+ sf_urban_physics                    = ${rep(0)},
+/
+
+&dynamics
+ hybrid_opt                          = 2,
+ w_damping                           = 0,
+ diff_opt                            = 1,
+ km_opt                              = 4,
+ diff_6th_opt                        = 0,
+ diff_6th_factor                     = 0.12,
+ base_temp                           = 290.,
+ damp_opt                            = 3,
+ zdamp                               = 5000.,
+ dampcoef                            = 0.2,
+ khdif                               = 0,
+ kvdif                               = 0,
+ non_hydrostatic                     = ${rep('.true.')},
+ moist_adv_opt                       = ${rep(1)},
+ scalar_adv_opt                      = ${rep(1)},
+ gwd_opt                             = 1,
+/
+
+&bdy_control
+ spec_bdy_width                      = 5,
+ spec_zone                           = 1,
+ relax_zone                          = 4,
+ specified                           = ${[...Array(maxDom)].map((_,i)=>i===0?'.true.':'.false.').join(', ')},
+ nested                              = ${[...Array(maxDom)].map((_,i)=>i===0?'.false.':'.true.').join(', ')},
+/
+
+&namelist_quilt
+ nio_tasks_per_group                 = 0,
+ nio_groups                          = 1,
+/`;
+
+  document.getElementById('wrf-namelist-preview').textContent = nml;
+  document.getElementById('wrf-output-wrap').style.display = 'block';
+
+  const blob = new Blob([nml], { type: 'text/plain' });
+  document.getElementById('wrf-download-link').href = URL.createObjectURL(blob);
+
+  // Make sure output section is visible
+  document.getElementById('output-section').classList.add('visible');
+  document.getElementById('wrf-output-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 </script>
 </body>
 </html>
