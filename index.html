@@ -1,1 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<title>WRF Docker Project | SRIP 2026</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+
+    font-family: "Segoe UI", Arial, sans-serif;
+
+    background:
+    linear-gradient(135deg,#0d3b66,#145da0,#1d70b8);
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:30px;
+
+}
+
+.container{
+
+    width:100%;
+    max-width:820px;
+
+    background:white;
+
+    border-radius:20px;
+
+    box-shadow:0 15px 45px rgba(0,0,0,.25);
+
+    overflow:hidden;
+
+}
+
+.header{
+
+    background:#0d3b66;
+
+    color:white;
+
+    padding:35px;
+
+    text-align:center;
+
+}
+
+.header h1{
+
+    font-size:32px;
+
+    line-height:1.25;
+
+    margin-bottom:15px;
+
+}
+
+.header h2{
+
+    font-size:24px;
+
+    font-weight:600;
+
+    margin-bottom:8px;
+
+}
+
+.header p{
+
+    font-size:18px;
+
+    line-height:1.6;
+
+}
+
+.content{
+
+    padding:40px;
+
+}
+
+.section-title{
+
+    color:#0d3b66;
+
+    font-size:24px;
+
+    margin-bottom:15px;
+
+    border-bottom:3px solid #145da0;
+
+    display:inline-block;
+
+    padding-bottom:5px;
+
+}
+
+.summary{
+
+    font-size:17px;
+
+    line-height:1.7;
+
+    color:#444;
+
+    margin-top:18px;
+
+    margin-bottom:35px;
+
+}
+
+.button{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    text-decoration:none;
+
+    background:#f4f8fc;
+
+    color:#222;
+
+    padding:20px 25px;
+
+    border-radius:14px;
+
+    margin-bottom:18px;
+
+    border:2px solid #d9e8f5;
+
+    transition:.25s;
+
+}
+
+.button:hover{
+
+    background:#0d3b66;
+
+    color:white;
+
+    transform:translateY(-3px);
+
+}
+
+.button-left{
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.button-title{
+
+    font-size:22px;
+
+    font-weight:700;
+
+    margin-bottom:5px;
+
+}
+
+.button-sub{
+
+    font-size:15px;
+
+    opacity:.85;
+
+}
+
+.arrow{
+
+    font-size:28px;
+
+}
+
+.footer{
+
+    background:#f2f2f2;
+
+    text-align:center;
+
+    padding:18px;
+
+    color:#555;
+
+    font-size:15px;
+
+}
+
+@media(max-width:700px){
+
+.header h1{
+
+font-size:24px;
+
+}
+
+.header h2{
+
+font-size:20px;
+
+}
+
+.button-title{
+
+font-size:19px;
+
+}
+
+.button-sub{
+
+font-size:14px;
+
+}
+
+.summary{
+
+font-size:16px;
+
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+
+<h1>
+A Dockerized WRF Pipeline for High-Resolution Weather Modeling Over India
+</h1>
+
+<h2>Ananya Roy</h2>
+
+<p>
+
+SRIP 2026 Intern<br>
+
+Department of Atmospheric Sciences<br>
+
+University of Calcutta
+
+</p>
+
+<br>
+
+<p>
+
+Supervisor: <strong>Prof. Nipun Batra</strong><br>
+
+Sustainability Lab<br>
+
+Indian Institute of Technology Gandhinagar
+
+</p>
+
+</div>
+
+<div class="content">
+
+<div class="section-title">
+
+Project Summary
+
+</div>
+
+<p class="summary">
+
+This project presents a Dockerized workflow for configuring and running the Weather Research and Forecasting (WRF) model. It integrates automated domain configuration, preprocessing utilities, visualization tools, and a browser-based graphical user interface (GUI) to simplify regional weather simulations and improve reproducibility across computing environments.
+
+</p>
+
+<a class="button"
+href="https://ananyaroy-repo.github.io/WRF-Docker-India/wrf_runner_ui.html"
+target="_blank">
+
+<div class="button-left">
+
+<div class="button-title">
+
+🖥 GUI Preview
+
+</div>
+
+<div class="button-sub">
+
+Interactive WRF Domain Configuration Interface
+
+</div>
+
+</div>
+
+<div class="arrow">
+
+➜
+
+</div>
+
+</a>
+
+<a class="button"
+href="https://github.com/ananyaroy-repo/WRF-Docker-India"
+target="_blank">
+
+<div class="button-left">
+
+<div class="button-title">
+
+📂 GitHub Repository
+
+</div>
+
+<div class="button-sub">
+
+Source Code, Documentation and Project Files
+
+</div>
+
+</div>
+
+<div class="arrow">
+
+➜
+
+</div>
+
+</a>
+
+<a class="button"
+href="https://hub.docker.com/repository/docker/ananyahere/wrf-india/general"
+target="_blank">
+
+<div class="button-left">
+
+<div class="button-title">
+
+🐳 Docker Hub
+
+</div>
+
+<div class="button-sub">
+
+Docker Image for Reproducible Deployment
+
+</div>
+
+</div>
+
+<div class="arrow">
+
+➜
+
+</div>
+
+</a>
+
+</div>
+
+<div class="footer">
+
+Developed during <strong>SRIP 2026</strong> • Sustainability Lab • IIT Gandhinagar
+
+</div>
+
+</div>
+
+</body>
+
+</html>
