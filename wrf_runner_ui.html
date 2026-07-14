@@ -588,8 +588,8 @@
     <div class="preset-row">
       <button class="preset-btn" onclick="loadPreset('india27',this)">All India — 27 km</button>
       <button class="preset-btn" onclick="loadPreset('delhi9',this)">Delhi region — 9 km</button>
-      <button class="preset-btn" onclick="loadPreset('delhi3',this)">Delhi city — 3 km</button>
-      <button class="preset-btn" onclick="loadPreset('mumbai3',this)">Mumbai — 3 km</button>
+      <button class="preset-btn" onclick="loadPreset('southIndia9',this)">South India — 9 km</button>
+      <button class="preset-btn" onclick="loadPreset('wbOdisha9',this)">West Bengal &amp; Odisha coast — 9 km</button>
       <button class="preset-btn" onclick="loadPreset('blank',this)">Custom / blank</button>
     </div>
   </div>
@@ -709,9 +709,9 @@
           <label>Domain preset key (for server)</label>
           <select id="domain_key">
             <option value="d01_27km">d01_27km — All India 27km</option>
-            <option value="d02_9km_delhi">d02_9km_delhi — Delhi 9km</option>
-            <option value="d03_3km_delhi_city">d03_3km_delhi_city — Delhi City 3km</option>
-            <option value="d04_3km_mumbai">d04_3km_mumbai — Mumbai 3km</option>
+            <option value="d02_9km_delhi">d02_9km_delhi — Delhi region 9km</option>
+            <option value="d03_9km_south_india">d03_9km_south_india — South India 9km</option>
+            <option value="d04_9km_wb_odisha">d04_9km_wb_odisha — West Bengal &amp; Odisha coast 9km</option>
           </select>
           <input type="text" id="domain_key_custom" placeholder="e.g. my_custom_domain"
             style="display:none; font-family:var(--sans); height:38px; padding:0 12px;
@@ -991,16 +991,102 @@
 
   </div><!-- end output-section -->
 
+  <!-- ── WRF SIMULATION OUTPUT (runs on the HPC server, separate server) ── -->
+  <hr class="divider">
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num" style="background:var(--purple-dim);border-color:rgba(181,123,255,0.3);color:var(--purple);">W</span>
+      <span class="section-title">WRF Simulation Output — HPC server</span>
+    </div>
+    <div class="server-notice">
+      <span class="server-notice-icon">&#9432;</span>
+      <div>
+        <strong>This talks to a separate server running on the HPC server, not your local machine.</strong>
+        Run <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">python3 ~/wrf_work/wrf_viz_server.py</code> on the HPC server,
+        then forward port <strong>5051</strong> via VS Code's <strong>PORTS</strong> tab (Forward a Port &rarr; 5051) so this page can reach it at <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">localhost:5051</code>.
+        <div id="wrf_preset_note" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(61,214,140,0.12);border:1px solid rgba(61,214,140,0.3);border-radius:6px;color:var(--green);font-size:12px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid-2">
+        <div class="field">
+          <label>WRF run directory (on the HPC server)</label>
+          <input type="text" id="wrf_run_dir" value="/mnt/nas/gfs_data/wrf_setup/real_wrf_run_july2023_FINAL">
+        </div>
+        <div class="field">
+          <label>Output/viz directory (on the HPC server)</label>
+          <input type="text" id="wrf_output_dir" value="/mnt/nas/gfs_data/wrf_setup/viz_output_final">
+        </div>
+      </div>
+      <div class="grid-2 spacer">
+        <div class="field">
+          <label>Domain to visualize</label>
+          <select id="wrf_domain">
+            <option value="d01">d01 — All India (27km)</option>
+            <option value="d02">d02 — Delhi region (9km)</option>
+            <option value="d03">d03 — South India (9km)</option>
+            <option value="d04">d04 — West Bengal &amp; Odisha coast (9km)</option>
+          </select>
+          <span class="hint">Auto-selected when you pick a matching preset above — only these four domains have real, completed WRF output.</span>
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="auto-center-btn" style="width:auto;padding:9px 18px;margin-top:0;" onclick="checkWrfStatus()">
+            &#8635; Check run status
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wrf-status-box" style="display:none; margin-top:1rem;">
+      <div class="metrics-row" id="wrf-status-metrics"></div>
+      <div class="code-block">
+        <div class="code-block-label">latest log lines (rsl.out.0000)</div>
+        <pre id="wrf-status-log" style="font-size:11px;"></pre>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="viz-btn" id="btn-wrf-viz" onclick="runWrfVisualize()">
+        &#127760;&nbsp; Visualize this domain
+      </button>
+    </div>
+
+    <div class="terminal-panel" id="wrfviz-terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot" style="background:#f46060"></div>
+        <div class="terminal-dot" style="background:#f5a623;margin-left:5px"></div>
+        <div class="terminal-dot" style="background:#3dd68c;margin-left:5px"></div>
+        <span class="terminal-title">visualize_wrf_timeseries.py — HPC server</span>
+        <span class="terminal-status" id="wrfviz-status">idle</span>
+      </div>
+      <div class="terminal-body" id="wrfviz-output"></div>
+    </div>
+
+    <div class="gallery" id="wrf-summary-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Domain-mean time series</div>
+      <div class="gallery-grid" id="wrf-summary-grid" style="grid-template-columns:1fr;"></div>
+    </div>
+
+    <div class="gallery" id="wrf-met-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Per-timestep maps — T2, wind &amp; precipitation</div>
+      <div class="gallery-grid" id="wrf-met-grid"></div>
+    </div>
+  </div>
+
 </div><!-- end page -->
 
 <script>
 const SERVER = 'http://localhost:5050';
 
 const PRESETS = {
-  india27: { lat:20.0, lon:78.0, dx:'27', we:50, sn:50, domain:'d01_27km',        out:'/home/ananya/WRF_PROJECTS/runs/d01_27km' },
-  delhi9:  { lat:28.6, lon:77.2, dx:'9',  we:60, sn:60, domain:'d02_9km_delhi',   out:'/home/ananya/WRF_PROJECTS/runs/d02_9km_delhi' },
-  delhi3:  { lat:28.6, lon:77.2, dx:'3',  we:60, sn:60, domain:'d03_3km_delhi_city', out:'/home/ananya/WRF_PROJECTS/runs/d03_3km_delhi_city' },
-  mumbai3: { lat:19.0, lon:72.8, dx:'3',  we:60, sn:60, domain:'d04_3km_mumbai',  out:'/home/ananya/WRF_PROJECTS/runs/d04_3km_mumbai' },
+  // Coordinates verified directly from the actual geo_em.d0N.nc files used in the
+  // real HPC WRF run (checked via netCDF4, not assumed). d02-d04 use 9km, not 3km —
+  // the original preset resolutions here were never based on real geogrid output.
+  india27:     { lat:21.5,       lon:83.0,       dx:'27', we:130, sn:130, domain:'d01_27km',            out:'/home/ananya/WRF_PROJECTS/runs/d01_27km',            wrfDomain:'d01' },
+  delhi9:      { lat:27.334587,  lon:78.06797,   dx:'9',  we:100, sn:100, domain:'d02_9km_delhi',        out:'/home/ananya/WRF_PROJECTS/runs/d02_9km_delhi',        wrfDomain:'d02' },
+  southIndia9: { lat:13.9906845, lon:78.314575,  dx:'9',  we:100, sn:100, domain:'d03_9km_south_india',  out:'/home/ananya/WRF_PROJECTS/runs/d03_9km_south_india',  wrfDomain:'d03' },
+  wbOdisha9:   { lat:22.414818,  lon:87.685425,  dx:'9',  we:100, sn:100, domain:'d04_9km_wb_odisha',    out:'/home/ananya/WRF_PROJECTS/runs/d04_9km_wb_odisha',    wrfDomain:'d04' },
 };
 
 // Keep the last generated namelist in memory for the Run button
@@ -1033,12 +1119,15 @@ function loadPreset(key, btn) {
     document.getElementById('domain_key_hint_preset').style.display = 'none';
     document.getElementById('output_path').value       = '';
     document.getElementById('output_path').placeholder = 'e.g. /home/ananya/WRF_PROJECTS/runs/my_domain';
+    const note = document.getElementById('wrf_preset_note');
+    if (note) note.style.display = 'none';
   } else {
     const p = PRESETS[key];
     document.getElementById('ref_lat').value    = p.lat;
     document.getElementById('ref_lon').value    = p.lon;
     document.getElementById('e_we').value       = p.we;
     document.getElementById('e_sn').value       = p.sn;
+    document.getElementById('map_proj').value   = 'mercator'; // all real presets use mercator — was previously left at whatever the dropdown last had
     custom.style.display = 'none';
     hint.style.display   = 'none';
     sel.style.display    = 'block';
@@ -1050,6 +1139,19 @@ function loadPreset(key, btn) {
     document.getElementById('domain_key_hint_preset').style.display = 'block';
     document.getElementById('output_path').value       = p.out;
     document.getElementById('output_path').placeholder = '';
+
+    // Continuation: this preset's location already has a real, completed WRF run.
+    // Pre-select the matching domain in the WRF Simulation Output section below,
+    // so visualizing "this location's weather" is a one-click follow-on from geogrid.
+    const wrfDomainSel = document.getElementById('wrf_domain');
+    if (wrfDomainSel && p.wrfDomain) {
+      wrfDomainSel.value = p.wrfDomain;
+      const note = document.getElementById('wrf_preset_note');
+      if (note) {
+        note.style.display = 'block';
+        note.textContent = `This location matches a completed WRF run (domain ${p.wrfDomain}) — scroll down to "WRF Simulation Output" and click "Visualize this domain" to see it.`;
+      }
+    }
   }
 }
 
@@ -1744,6 +1846,126 @@ function generateWRF() {
   // Make sure output section is visible
   document.getElementById('output-section').classList.add('visible');
   document.getElementById('wrf-output-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── WRF SIMULATION OUTPUT (HPC server, separate viz server) ──────────────── */
+const WRF_SERVER = 'http://localhost:5051';
+
+async function checkWrfStatus() {
+  clearError();
+  const box = document.getElementById('wrf-status-box');
+  const runDir = document.getElementById('wrf_run_dir').value.trim();
+
+  try {
+    const res = await fetch(`${WRF_SERVER}/wrf-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_dir: runDir })
+    });
+    const data = await res.json();
+
+    const runningBadge = data.running
+      ? `<span style="color:var(--green)">running (${data.process_count} processes)</span>`
+      : `<span style="color:var(--amber)">not running (0 processes — finished or not started)</span>`;
+
+    document.getElementById('wrf-status-metrics').innerHTML = `
+      <div class="metric">
+        <div class="metric-label">Status</div>
+        <div class="metric-value" style="font-size:14px;">${runningBadge}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">d01 / d02 files</div>
+        <div class="metric-value">${data.file_counts.d01} / ${data.file_counts.d02}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">d03 / d04 files</div>
+        <div class="metric-value">${data.file_counts.d03} / ${data.file_counts.d04}</div>
+      </div>
+    `;
+    document.getElementById('wrf-status-log').textContent =
+      (data.last_log_lines || []).join('\n') || '(no log lines captured — check completion via file counts above)';
+    box.style.display = 'block';
+
+  } catch (e) {
+    showError(`Could not reach WRF viz server at ${WRF_SERVER}. Make sure it's running on the HPC server (python3 ~/wrf_work/wrf_viz_server.py) and port 5051 is forwarded in VS Code's PORTS tab.\n\nError: ${e.message}`);
+  }
+}
+
+async function runWrfVisualize() {
+  clearError();
+  const domain    = document.getElementById('wrf_domain').value;
+  const runDir    = document.getElementById('wrf_run_dir').value.trim();
+  const outputDir = document.getElementById('wrf_output_dir').value.trim();
+  const btn       = document.getElementById('btn-wrf-viz');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Visualizing…';
+
+  setTerminal('wrfviz',
+    `<span class="t-cmd">$ python3 visualize_wrf_timeseries.py ${domain}  (on the HPC server)</span>\n`,
+    'running', true);
+  document.getElementById('wrfviz-terminal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch(`${WRF_SERVER}/run-visualize-wrf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain, run_dir: runDir, output_dir: outputDir })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setTerminal('wrfviz', `<span class="t-error">Server error: ${err.error || res.statusText}</span>`, 'error', true);
+      btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    const colored = colorizeOutput(escapeHtml(data.output || ''));
+    setTerminal('wrfviz', colored, data.success ? 'success' : 'error', true);
+
+    const summaryGrid = document.getElementById('wrf-summary-grid');
+    const summaryGallery = document.getElementById('wrf-summary-gallery');
+    summaryGrid.innerHTML = '';
+    if (data.summary_url) {
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.innerHTML = `
+        <div class="gallery-item-label">${escapeHtml(domain)} — domain-mean T2 &amp; precipitation over time</div>
+        <img src="${WRF_SERVER}${data.summary_url}?t=${Date.now()}" alt="summary">
+      `;
+      summaryGrid.appendChild(item);
+      summaryGallery.classList.add('visible');
+    }
+
+    const metGrid = document.getElementById('wrf-met-grid');
+    const metGallery = document.getElementById('wrf-met-gallery');
+    metGrid.innerHTML = '';
+    (data.png_files || []).forEach(path => {
+      const filename = path.split('/').pop();
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.innerHTML = `
+        <div class="gallery-item-label">${escapeHtml(filename)}</div>
+        <img src="${WRF_SERVER}${path}?t=${Date.now()}" alt="${escapeHtml(filename)}"
+             onerror="this.style.display='none'">
+      `;
+      metGrid.appendChild(item);
+    });
+    if ((data.png_files || []).length > 0) {
+      metGallery.classList.add('visible');
+      metGallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+  } catch (e) {
+    setTerminal('wrfviz',
+      `<span class="t-error">Could not reach WRF viz server at ${WRF_SERVER}.\n\nMake sure it's running on the HPC server:\n  python3 ~/wrf_work/wrf_viz_server.py\n\nand port 5051 is forwarded in VS Code's PORTS tab.\n\nError: ${e.message}</span>`,
+      'error', true);
+  }
+
+  btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+  btn.disabled = false;
 }
 
 </script>
