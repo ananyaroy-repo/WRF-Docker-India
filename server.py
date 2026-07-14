@@ -8,10 +8,10 @@ CORS(app)
 IMAGE = "ananyahere/wrf-india:v2.1"
 
 PRESET_DOMAINS = {
-    "d01_27km":           {"nc_file": "geo_em.d01.nc"},
-    "d02_9km_delhi":      {"nc_file": "geo_em_9km_delhi.nc"},
-    "d03_3km_delhi_city": {"nc_file": "geo_em_3km_delhi_city.nc"},
-    "d04_3km_mumbai":     {"nc_file": "geo_em_3km_mumbai.nc"},
+    "d01_27km":              {"nc_file": "geo_em.d01.nc"},
+    "d02_9km_delhi":         {"nc_file": "geo_em_9km_delhi.nc"},
+    "d03_9km_south_india":   {"nc_file": "geo_em_9km_south_india.nc"},
+    "d04_9km_wb_odisha":     {"nc_file": "geo_em_9km_wb_odisha.nc"},
 }
 
 def safe_path(path):
