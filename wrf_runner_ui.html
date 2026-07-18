@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WRF Runner — Domain Config & Docker Setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1117;
+    --surface:   #171c27;
+    --surface2:  #1e2535;
+    --border:    #2a3145;
+    --border2:   #3a4460;
+    --text:      #e8ecf4;
+    --muted:     #8892a4;
+    --hint:      #55617a;
+    --accent:    #4f8ef7;
+    --accent-dim:#1e3a6e;
+    --green:     #3dd68c;
+    --green-dim: #0e3d24;
+    --amber:     #f5a623;
+    --amber-dim: #3d2a0a;
+    --red:       #f46060;
+    --red-dim:   #3d1010;
+    --purple:    #b57bff;
+    --purple-dim:#2a1a4e;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --radius:    8px;
+    --radius-lg: 12px;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .page { max-width: 760px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .header { margin-bottom: 2.5rem; }
+  .header-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(79,142,247,0.25);
+    border-radius: 20px; padding: 3px 10px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-size: 26px; font-weight: 600; line-height: 1.2;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .header p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+  /* ── Flow bar ── */
+  .flow-bar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .flow-step {
+    padding: 12px 8px; text-align: center;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    transition: background 0.2s;
+  }
+  .flow-step:last-child { border-right: none; }
+  .flow-step.active { background: var(--accent-dim); }
+  .flow-icon { font-size: 18px; margin-bottom: 4px; }
+  .flow-label { font-size: 11px; color: var(--muted); line-height: 1.3; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 1.75rem; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 0.875rem;
+  }
+  .section-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; color: var(--muted);
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+
+  /* ── Presets ── */
+  .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .preset-btn {
+    font-family: var(--sans);
+    font-size: 12px; font-weight: 400;
+    padding: 6px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--text); }
+  .preset-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── Form ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.05em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .field input, .field select {
+    font-family: var(--sans);
+    height: 38px; padding: 0 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text); font-size: 13px;
+    transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none;
+  }
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238892a4' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field .hint { font-size: 11px; color: var(--hint); margin-top: 2px; }
+  .field-full { grid-column: 1 / -1; }
+  .spacer { margin-top: 14px; }
+
+  /* ── Server notice ── */
+  .server-notice {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,166,35,0.3);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    margin-bottom: 1.5rem;
+    font-size: 12px; color: var(--amber); line-height: 1.6;
+  }
+  .server-notice-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 10px; margin-bottom: 2rem; flex-wrap: wrap; }
+
+  .generate-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    flex: 1; min-width: 200px; height: 48px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .generate-btn:hover { opacity: 0.9; }
+  .generate-btn:active { transform: scale(0.99); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .run-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    flex: 1; min-width: 160px; height: 48px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(61,214,140,0.3);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .run-btn:hover { background: rgba(61,214,140,0.15); border-color: var(--green); }
+  .run-btn:active { transform: scale(0.99); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .viz-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    flex: 1; min-width: 160px; height: 48px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--purple-dim);
+    color: var(--purple);
+    border: 1px solid rgba(181,123,255,0.3);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .viz-btn:hover { background: rgba(181,123,255,0.15); border-color: var(--purple); }
+  .viz-btn:active { transform: scale(0.99); }
+  .viz-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── Error ── */
+  .error-msg {
+    display: none;
+    font-size: 12px; color: var(--red);
+    background: var(--red-dim);
+    border: 1px solid rgba(244,96,96,0.3);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Output ── */
+  .output-section { display: none; }
+  .output-section.visible { display: block; }
+
+  .success-banner {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--green-dim);
+    border: 1px solid rgba(61,214,140,0.25);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    margin-bottom: 1.5rem;
+  }
+  .success-icon { font-size: 18px; }
+  .success-text { font-size: 13px; color: var(--green); font-weight: 500; }
+
+  /* ── Metrics ── */
+  .metrics-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+  .metric {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 14px 16px;
+  }
+  .metric-label { font-size: 10px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: 600; color: var(--text); }
+
+  /* ── Substep header ── */
+  .substep-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 0.75rem; margin-top: 1.5rem;
+  }
+  .substep-letter {
+    width: 22px; height: 22px; border-radius: 4px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(79,142,247,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .substep-letter.green {
+    background: var(--green-dim);
+    border-color: rgba(61,214,140,0.3);
+    color: var(--green);
+  }
+  .substep-letter.purple {
+    background: var(--purple-dim);
+    border-color: rgba(181,123,255,0.3);
+    color: var(--purple);
+  }
+  .substep-title { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* ── Code block ── */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .code-block-label {
+    padding: 8px 14px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+    color: var(--hint); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .code-block pre {
+    font-family: var(--mono);
+    font-size: 12px; line-height: 1.7;
+    color: var(--text);
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 10px;
+    font-family: var(--sans);
+    font-size: 11px; padding: 4px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* ── Download button ── */
+  .download-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    padding: 9px 18px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.15s;
+    margin-top: 6px;
+  }
+  .download-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Steps list ── */
+  .steps-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 10px; }
+  .step-item { display: flex; gap: 12px; align-items: flex-start; }
+  .step-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--hint); flex-shrink: 0; margin-top: 1px;
+  }
+  .step-text { font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .step-text code {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; color: var(--text);
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1.75rem 0; }
+
+  /* ── Terminal panel ── */
+  .terminal-panel {
+    display: none;
+    background: #0a0d14;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-top: 1rem;
+  }
+  .terminal-panel.visible { display: block; }
+  .terminal-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-title {
+    font-size: 11px; color: var(--muted); font-family: var(--mono);
+    margin-left: 4px; flex: 1;
+  }
+  .terminal-status {
+    font-size: 11px; font-family: var(--mono);
+    padding: 2px 8px; border-radius: 4px;
+    font-weight: 500;
+  }
+  .terminal-status.running {
+    background: var(--amber-dim); color: var(--amber);
+    border: 1px solid rgba(245,166,35,0.3);
+  }
+  .terminal-status.success {
+    background: var(--green-dim); color: var(--green);
+    border: 1px solid rgba(61,214,140,0.3);
+  }
+  .terminal-status.error {
+    background: var(--red-dim); color: var(--red);
+    border: 1px solid rgba(244,96,96,0.3);
+  }
+  .terminal-body {
+    font-family: var(--mono);
+    font-size: 12px; line-height: 1.7;
+    color: #a8b5cc;
+    padding: 16px;
+    max-height: 360px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .terminal-body .t-success { color: var(--green); }
+  .terminal-body .t-error   { color: var(--red); }
+  .terminal-body .t-cmd     { color: var(--accent); }
+  .terminal-body .t-muted   { color: var(--hint); }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid rgba(245,166,35,0.3);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+
+  /* ── Image gallery ── */
+  .gallery {
+    display: none;
+    margin-top: 1.25rem;
+  }
+  .gallery.visible { display: block; }
+  .gallery-header {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .gallery-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .gallery-item-label {
+    padding: 8px 12px;
+    font-size: 11px; color: var(--muted);
+    font-family: var(--mono);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .gallery-item img {
+    width: 100%; height: auto; display: block;
+  }
+
+
+  /* ── Nested domain cards ── */
+  .nested-domains-wrap { margin-top: 0.875rem; }
+  .nest-intro { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height:1.6; }
+  .nest-intro code { font-family:var(--mono); font-size:11px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  .domain-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+  .domain-card {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-lg); padding: 1rem;
+  }
+  .domain-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .domain-label {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    font-family: var(--mono); background: var(--accent-dim);
+    border: 1px solid rgba(79,142,247,0.3); border-radius: 6px; padding: 3px 10px;
+  }
+  .remove-domain-btn {
+    font-family: var(--sans); font-size: 11px; font-weight: 500;
+    padding: 4px 10px; background: var(--red-dim); color: var(--red);
+    border: 1px solid rgba(244,96,96,0.3); border-radius: 6px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .remove-domain-btn:hover { background: rgba(244,96,96,0.2); }
+  .add-domain-btn {
+    font-family: var(--sans); font-size: 12px; font-weight: 500;
+    padding: 8px 16px; width: 100%; text-align: center;
+    background: var(--surface2); border: 1px dashed var(--border2);
+    border-radius: var(--radius-lg); color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .add-domain-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nest-res-badge {
+    display: inline-block; font-size: 11px; font-family: var(--mono);
+    color: var(--green); background: var(--green-dim);
+    border: 1px solid rgba(61,214,140,0.2);
+    border-radius: 4px; padding: 2px 7px; margin-top: 4px;
+  }
+  .auto-center-btn {
+    font-family: var(--sans); font-size: 11px; padding: 5px 12px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 6px; color: var(--muted); cursor: pointer;
+    transition: all 0.15s; margin-top: 6px; width: 100%;
+  }
+  .auto-center-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── WRF namelist section ── */
+  .collapse-header {
+    display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+  }
+  .collapse-arrow { font-size: 10px; color: var(--muted); transition: transform 0.2s; }
+  .collapse-arrow.open { transform: rotate(90deg); }
+  .collapse-body { display: none; margin-top: 0.875rem; }
+  .collapse-body.open { display: block; }
+  .physics-group { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .physics-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .physics-group-label {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.07em;
+    color: var(--hint); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .wrf-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    height: 48px; padding: 0 20px;
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    background: var(--purple-dim); color: var(--purple);
+    border: 1px solid rgba(181,123,255,0.3);
+    border-radius: var(--radius-lg); cursor: pointer; transition: all 0.15s;
+  }
+  .wrf-btn:hover { background: rgba(181,123,255,0.15); border-color: var(--purple); }
+  .wrf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Responsive ── */
+  @media (max-width: 540px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .metrics-row { grid-template-columns: 1fr; }
+    .flow-bar { grid-template-columns: repeat(3, 1fr); }
+    .flow-step:nth-child(3) { border-right: none; }
+    .flow-step:nth-child(4) { border-top: 1px solid var(--border); }
+    .gallery-grid { grid-template-columns: 1fr; }
+    .btn-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-badge">&#9679; WRF Runner</div>
+    <h1>Domain Config &amp; Docker Setup</h1>
+    <p>Fill in your domain settings to generate a <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">namelist.wps</code> file — then run geogrid and visualize terrain directly from this UI.</p>
+  </div>
+
+  <!-- Flow bar -->
+  <div class="flow-bar">
+    <div class="flow-step">
+      <div class="flow-icon">&#9881;</div>
+      <div class="flow-label">configure</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon">&#8659;</div>
+      <div class="flow-label">namelist</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon">&#9654;</div>
+      <div class="flow-label">run geogrid</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon">&#127760;</div>
+      <div class="flow-label">visualize</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon">&#128444;</div>
+      <div class="flow-label">terrain maps</div>
+    </div>
+  </div>
+
+  <!-- Server notice -->
+  <div class="server-notice">
+    <span class="server-notice-icon">&#9432;</span>
+    <div>
+      <strong>To use Run Geogrid &amp; Visualize:</strong> start the local server first —
+      run <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">python3 ~/wrf-runner/server.py</code>
+      in your Ubuntu terminal and keep it running.
+      The "Generate namelist" button always works without it.
+    </div>
+  </div>
+
+  <!-- Step 1: Presets -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">1</span>
+      <span class="section-title">Choose a preset or configure manually</span>
+    </div>
+    <div class="preset-row">
+      <button class="preset-btn" onclick="loadPreset('india27',this)">All India — 27 km</button>
+      <button class="preset-btn" onclick="loadPreset('delhi9',this)">Delhi region — 9 km</button>
+      <button class="preset-btn" onclick="loadPreset('southIndia9',this)">South India — 9 km</button>
+      <button class="preset-btn" onclick="loadPreset('wbOdisha9',this)">West Bengal &amp; Odisha coast — 9 km</button>
+      <button class="preset-btn" onclick="loadPreset('blank',this)">Custom / blank</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Domain settings -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">2</span>
+      <span class="section-title">Domain settings</span>
+    </div>
+    <div class="card">
+      <div class="grid-2">
+        <div class="field">
+          <label>Center latitude (°N)</label>
+          <input type="number" id="ref_lat" value="20.0" step="0.1">
+          <span class="hint">e.g. 20.0 for central India, 28.6 for Delhi</span>
+        </div>
+        <div class="field">
+          <label>Center longitude (°E)</label>
+          <input type="number" id="ref_lon" value="78.0" step="0.1">
+          <span class="hint">e.g. 78.0 for central India, 77.2 for Delhi</span>
+        </div>
+      </div>
+      <div class="grid-3 spacer">
+        <div class="field">
+          <label>Grid spacing</label>
+          <select id="dx_km">
+            <option value="27">27 km — lightest</option>
+            <option value="9">9 km — moderate</option>
+            <option value="3">3 km — heavy</option>
+          </select>
+          <input type="number" id="dx_km_custom" placeholder="e.g. 15" min="1" step="1"
+            style="display:none; font-family:var(--sans); height:38px; padding:0 12px;
+            background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius);
+            color:var(--text); font-size:13px;">
+          <span class="hint" id="dx_hint" style="display:none;">Enter grid spacing in km</span>
+        </div>
+        <div class="field">
+          <label>Grid points W–E</label>
+          <input type="number" id="e_we" value="50" min="10" step="1">
+        </div>
+        <div class="field">
+          <label>Grid points S–N</label>
+          <input type="number" id="e_sn" value="50" min="10" step="1">
+        </div>
+      </div>
+      <div class="grid-3 spacer">
+        <div class="field">
+          <label>Map projection</label>
+          <select id="map_proj">
+            <option value="lambert">lambert</option>
+            <option value="mercator">mercator</option>
+            <option value="lat-lon">lat-lon</option>
+            <option value="polar">polar</option>
+          </select>
+          <span class="hint">Lambert recommended for mid-latitudes</span>
+        </div>
+        <div class="field">
+          <label>Topo data resolution</label>
+          <select id="geog_data_res">
+            <option value="default">default (high-res)</option>
+            <option value="lowres">lowres (local machines)</option>
+          </select>
+          <span class="hint">Use default if server has full WPS_GEOG</span>
+        </div>
+        <div class="field">
+          <label>Interval seconds</label>
+          <input type="number" id="interval_seconds" value="10800" min="3600" step="3600">
+          <span class="hint">10800 = 3hrs &nbsp;|&nbsp; 21600 = 6hrs</span>
+        </div>
+      </div>
+      <div class="grid-2 spacer">
+        <div class="field">
+          <label>Start date</label>
+          <input type="text" id="start_date" value="2019-09-04_00:00:00">
+          <span class="hint">format: YYYY-MM-DD_HH:MM:SS</span>
+        </div>
+        <div class="field">
+          <label>End date</label>
+          <input type="text" id="end_date" value="2019-09-04_06:00:00">
+          <span class="hint">format: YYYY-MM-DD_HH:MM:SS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nested domains (optional) -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num" style="font-size:14px;">↳</span>
+      <span class="section-title">Nested domains (optional)</span>
+    </div>
+    <div class="card">
+      <p class="nest-intro">
+        d01 is configured above. Add child domains here. Each must fit within its parent.<br>
+        Constraint: <code>(e_we − 1)</code> and <code>(e_sn − 1)</code> must be divisible by <code>parent_grid_ratio</code>.
+      </p>
+      <div class="domain-cards" id="domain-cards"></div>
+      <button class="add-domain-btn" onclick="addNestedDomain()">+ Add nested domain</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Paths -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">3</span>
+      <span class="section-title">Your machine paths</span>
+    </div>
+    <div class="card">
+      <div class="field field-full">
+        <label>Path to WPS_GEOG folder on your machine</label>
+        <input type="text" id="geog_path" value="/home/ananya/WRF_PROJECTS/DATA/geog/WPS_GEOG_LOW_RES">
+        <span class="hint">Folder with terrain, land-use, soil type data</span>
+      </div>
+      <div class="grid-2 spacer">
+        <div class="field">
+          <label>Domain preset key (for server)</label>
+          <select id="domain_key">
+            <option value="d01_27km">d01_27km — All India 27km</option>
+            <option value="d02_9km_delhi">d02_9km_delhi — Delhi region 9km</option>
+            <option value="d03_9km_south_india">d03_9km_south_india — South India 9km</option>
+            <option value="d04_9km_wb_odisha">d04_9km_wb_odisha — West Bengal &amp; Odisha coast 9km</option>
+          </select>
+          <input type="text" id="domain_key_custom" placeholder="e.g. my_custom_domain"
+            style="display:none; font-family:var(--sans); height:38px; padding:0 12px;
+            background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius);
+            color:var(--text); font-size:13px;">
+          <span class="hint" id="domain_key_hint" style="display:none;">A short folder name — server will create it under ~/WRF_PROJECTS/runs/</span>
+          <span class="hint" id="domain_key_hint_preset">Tells the server which runs folder to use</span>
+        </div>
+        <div class="field">
+          <label>Output folder</label>
+          <input type="text" id="output_path" value="/home/ananya/WRF_PROJECTS/runs/d01_27km">
+          <span class="hint">geo_em*.nc and terrain PNGs appear here on your machine</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Docker image -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">4</span>
+      <span class="section-title">Docker image</span>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>Docker Hub image</label>
+        <input type="text" id="docker_image" value="ananyahere/wrf-india:v2.1">
+        <span class="hint">v2.1 includes geogrid, WRF, and Python visualization scripts</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Step 5: WRF namelist (optional) -->
+  <div class="section">
+    <div class="section-header collapse-header" onclick="toggleCollapse('wrf-namelist-collapse','wrf-arrow')">
+      <span class="section-num">5</span>
+      <span class="section-title">WRF namelist.input (optional)</span>
+      <span class="collapse-arrow" id="wrf-arrow">&#9654;</span>
+    </div>
+    <div class="collapse-body" id="wrf-namelist-collapse">
+      <div class="card">
+        <div class="physics-group">
+          <div class="physics-group-label">Microphysics &amp; Radiation</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Microphysics (mp_physics)</label>
+              <select id="mp_physics">
+                <option value="3">3 — WSM3 (simple, fast)</option>
+                <option value="4">4 — WSM5</option>
+                <option value="6" selected>6 — WSM6 (recommended)</option>
+                <option value="8">8 — Thompson</option>
+                <option value="10">10 — Morrison</option>
+                <option value="2">2 — Lin et al.</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Longwave radiation (ra_lw_physics)</label>
+              <select id="ra_lw_physics">
+                <option value="1">1 — RRTM</option>
+                <option value="4" selected>4 — RRTMG (recommended)</option>
+                <option value="3">3 — CAM</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Shortwave radiation (ra_sw_physics)</label>
+              <select id="ra_sw_physics">
+                <option value="1">1 — Dudhia</option>
+                <option value="4" selected>4 — RRTMG (recommended)</option>
+                <option value="2">2 — Goddard</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Cumulus scheme (cu_physics)</label>
+              <select id="cu_physics">
+                <option value="1" selected>1 — Kain-Fritsch</option>
+                <option value="2">2 — Betts-Miller-Janjić</option>
+                <option value="6">6 — Tiedtke</option>
+                <option value="0">0 — None (for &lt;4 km domains)</option>
+              </select>
+              <span class="hint">Auto-disabled for nested domains &lt;4 km</span>
+            </div>
+          </div>
+        </div>
+        <div class="physics-group">
+          <div class="physics-group-label">Surface &amp; PBL</div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Surface layer (sf_sfclay_physics)</label>
+              <select id="sf_sfclay_physics">
+                <option value="1" selected>1 — MM5 Revised</option>
+                <option value="2">2 — Eta/Mellor-Yamada</option>
+                <option value="5">5 — MYNN</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Land surface (sf_surface_physics)</label>
+              <select id="sf_surface_physics">
+                <option value="2" selected>2 — Noah</option>
+                <option value="4">4 — Noah-MP</option>
+                <option value="1">1 — Thermal diffusion (slab)</option>
+                <option value="3">3 — RUC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>PBL scheme (bl_pbl_physics)</label>
+              <select id="bl_pbl_physics">
+                <option value="1" selected>1 — YSU</option>
+                <option value="2">2 — Mellor-Yamada-Janjić</option>
+                <option value="5">5 — MYNN</option>
+                <option value="6">6 — MYJ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Land category (num_land_cat)</label>
+              <select id="num_land_cat">
+                <option value="21" selected>21 — MODIS (default)</option>
+                <option value="24">24 — MODIS modified</option>
+                <option value="28">28 — NLCD (US only)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="physics-group">
+          <div class="physics-group-label">Time &amp; Output</div>
+          <div class="grid-3">
+            <div class="field">
+              <label>Time step (seconds)</label>
+              <input type="number" id="wrf_time_step" value="162" min="1" step="1"
+                oninput="this.dataset.auto='false'">
+              <span class="hint">Rule of thumb: 6 × dx_km &nbsp;|&nbsp; auto-updates with dx</span>
+            </div>
+            <div class="field">
+              <label>History interval (minutes)</label>
+              <input type="number" id="history_interval" value="60" min="1">
+              <span class="hint">Output frequency</span>
+            </div>
+            <div class="field">
+              <label>Frames per output file</label>
+              <input type="number" id="frames_per_outfile" value="1000" min="1">
+              <span class="hint">Timesteps per wrfout file</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="error-msg"></div>
+
+  <!-- Action buttons -->
+  <div class="btn-row">
+    <button class="generate-btn" id="btn-generate" onclick="generate()">
+      &#9889;&nbsp; Generate namelist &amp; commands
+    </button>
+    <button class="run-btn" id="btn-run" onclick="runGeogrid()" disabled>
+      &#9654;&nbsp; Run geogrid in Docker
+    </button>
+    <button class="viz-btn" id="btn-viz" onclick="runVisualize()" disabled>
+      &#127760;&nbsp; Visualize terrain
+    </button>
+    <button class="wrf-btn" id="btn-wrf" onclick="generateWRF()" disabled>
+      &#128196;&nbsp; Generate WRF namelist
+    </button>
+  </div>
+
+  <!-- ── OUTPUT ── -->
+  <div class="output-section" id="output-section">
+
+    <div class="success-banner">
+      <span class="success-icon">&#10003;</span>
+      <span class="success-text">Config generated — download namelist, or click Run geogrid to execute directly</span>
+    </div>
+
+    <div class="metrics-row" id="metrics-row"></div>
+
+    <hr class="divider">
+
+    <!-- A: namelist -->
+    <div class="substep-header">
+      <span class="substep-letter">A</span>
+      <span class="substep-title">Download your namelist.wps</span>
+    </div>
+    <div class="code-block">
+      <div class="code-block-label">namelist.wps</div>
+      <pre id="namelist-preview"></pre>
+      <button class="copy-btn" onclick="copyEl('namelist-preview',this)">copy</button>
+    </div>
+    <a class="download-btn" id="download-link" download="namelist.wps">
+      &#8659;&nbsp; Download namelist.wps
+    </a>
+
+    <hr class="divider">
+
+    <!-- B: manual Docker command (kept for reference) -->
+    <div class="substep-header">
+      <span class="substep-letter">B</span>
+      <span class="substep-title">Manual Docker command (reference)</span>
+    </div>
+    <div class="code-block">
+      <div class="code-block-label">run in Ubuntu / WSL terminal</div>
+      <pre id="docker-cmd"></pre>
+      <button class="copy-btn" onclick="copyEl('docker-cmd',this)">copy</button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- C: Run geogrid live -->
+    <div class="substep-header">
+      <span class="substep-letter green">C</span>
+      <span class="substep-title">Run geogrid — live output</span>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+      Click <strong style="color:var(--green)">Run geogrid in Docker</strong> above.
+      The server writes your namelist to disk, runs the container, and streams output here.
+    </p>
+
+    <div class="terminal-panel" id="geogrid-terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot" style="background:#f46060"></div>
+        <div class="terminal-dot" style="background:#f5a623;margin-left:5px"></div>
+        <div class="terminal-dot" style="background:#3dd68c;margin-left:5px"></div>
+        <span class="terminal-title">docker run ananyahere/wrf-india:v2.1 — geogrid.exe</span>
+        <span class="terminal-status" id="geogrid-status">idle</span>
+      </div>
+      <div class="terminal-body" id="geogrid-output"></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- D: Visualize -->
+    <div class="substep-header">
+      <span class="substep-letter purple">D</span>
+      <span class="substep-title">Visualize terrain — live output + maps</span>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+      After geogrid succeeds, click <strong style="color:var(--purple)">Visualize terrain</strong> above.
+      The server runs <code style="font-family:var(--mono);font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;">python3 /wrf/visualize.py</code>
+      inside the container and saves terrain PNGs to your runs folder.
+    </p>
+
+    <div class="terminal-panel" id="viz-terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot" style="background:#f46060"></div>
+        <div class="terminal-dot" style="background:#f5a623;margin-left:5px"></div>
+        <div class="terminal-dot" style="background:#3dd68c;margin-left:5px"></div>
+        <span class="terminal-title">docker run ananyahere/wrf-india:v2.1 — visualize.py</span>
+        <span class="terminal-status" id="viz-status">idle</span>
+      </div>
+      <div class="terminal-body" id="viz-output"></div>
+    </div>
+
+    <!-- Image gallery -->
+    <div class="gallery" id="terrain-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Terrain maps — rendered output</div>
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+
+
+    <!-- E: WRF namelist output -->
+    <div id="wrf-output-wrap" style="display:none">
+      <hr class="divider">
+      <div class="substep-header">
+        <span class="substep-letter" style="background:var(--purple-dim);border-color:rgba(181,123,255,0.3);color:var(--purple);">E</span>
+        <span class="substep-title">WRF namelist.input</span>
+      </div>
+      <div class="code-block">
+        <div class="code-block-label">namelist.input</div>
+        <pre id="wrf-namelist-preview" style="max-height:500px;overflow-y:auto;"></pre>
+        <button class="copy-btn" onclick="copyEl('wrf-namelist-preview',this)">copy</button>
+      </div>
+      <a class="download-btn" id="wrf-download-link" download="namelist.input">
+        &#8659;&nbsp; Download namelist.input
+      </a>
+    </div>
+
+  </div><!-- end output-section -->
+
+  <!-- ── WRF SIMULATION OUTPUT (runs on the HPC server, separate server) ── -->
+  <hr class="divider">
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num" style="background:var(--purple-dim);border-color:rgba(181,123,255,0.3);color:var(--purple);">W</span>
+      <span class="section-title">WRF Simulation Output — HPC server</span>
+    </div>
+    <div class="server-notice">
+      <span class="server-notice-icon">&#9432;</span>
+      <div>
+        <strong>This talks to a separate server running on the HPC server, not your local machine.</strong>
+        Run <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">python3 ~/wrf_work/wrf_viz_server.py</code> on the HPC server,
+        then forward port <strong>5051</strong> via VS Code's <strong>PORTS</strong> tab (Forward a Port &rarr; 5051) so this page can reach it at <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">localhost:5051</code>.
+        <div id="wrf_preset_note" style="display:none;margin-top:8px;padding:8px 10px;background:rgba(61,214,140,0.12);border:1px solid rgba(61,214,140,0.3);border-radius:6px;color:var(--green);font-size:12px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid-2">
+        <div class="field">
+          <label>WRF run directory (on the HPC server)</label>
+          <input type="text" id="wrf_run_dir" value="/mnt/nas/gfs_data/wrf_setup/real_wrf_run_july2023_FINAL">
+        </div>
+        <div class="field">
+          <label>Output/viz directory (on the HPC server)</label>
+          <input type="text" id="wrf_output_dir" value="/mnt/nas/gfs_data/wrf_setup/viz_output_final">
+        </div>
+      </div>
+      <div class="grid-2 spacer">
+        <div class="field">
+          <label>Domain to visualize</label>
+          <select id="wrf_domain">
+            <option value="d01">d01 — All India (27km)</option>
+            <option value="d02">d02 — Delhi region (9km)</option>
+            <option value="d03">d03 — South India (9km)</option>
+            <option value="d04">d04 — West Bengal &amp; Odisha coast (9km)</option>
+          </select>
+          <span class="hint">Auto-selected when you pick a matching preset above — only these four domains have real, completed WRF output.</span>
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="auto-center-btn" style="width:auto;padding:9px 18px;margin-top:0;" onclick="checkWrfStatus()">
+            &#8635; Check run status
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wrf-status-box" style="display:none; margin-top:1rem;">
+      <div class="metrics-row" id="wrf-status-metrics"></div>
+      <div class="code-block">
+        <div class="code-block-label">latest log lines (rsl.out.0000)</div>
+        <pre id="wrf-status-log" style="font-size:11px;"></pre>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="viz-btn" id="btn-wrf-viz" onclick="runWrfVisualize()">
+        &#127760;&nbsp; Visualize this domain
+      </button>
+    </div>
+
+    <div class="terminal-panel" id="wrfviz-terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot" style="background:#f46060"></div>
+        <div class="terminal-dot" style="background:#f5a623;margin-left:5px"></div>
+        <div class="terminal-dot" style="background:#3dd68c;margin-left:5px"></div>
+        <span class="terminal-title">visualize_wrf_timeseries.py — HPC server</span>
+        <span class="terminal-status" id="wrfviz-status">idle</span>
+      </div>
+      <div class="terminal-body" id="wrfviz-output"></div>
+    </div>
+
+    <div class="gallery" id="wrf-summary-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Domain-mean time series</div>
+      <div class="gallery-grid" id="wrf-summary-grid" style="grid-template-columns:1fr;"></div>
+    </div>
+
+    <div class="gallery" id="wrf-met-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Per-timestep maps — T2, wind &amp; precipitation</div>
+      <div class="gallery-grid" id="wrf-met-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── WRFCAMx OUTPUT VISUALIZATION (runs on the HPC server, separate server) ── -->
+  <hr class="divider">
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num" style="background:var(--purple-dim);border-color:rgba(181,123,255,0.3);color:var(--purple);">X</span>
+      <span class="section-title">WRFCAMx Output — HPC server</span>
+    </div>
+    <div class="server-notice">
+      <span class="server-notice-icon">&#9432;</span>
+      <div>
+        <strong>This is meteorological pre-processing output for CAMx, not pollutant data.</strong>
+        No chemistry has been run yet — these fields (temperature, wind, PBL height, vertical diffusivity) are WRF's weather data reformatted for CAMx to consume later.
+        Run <code style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,0.3);border-radius:3px;padding:1px 5px;">python3 ~/WRF_PROJECTS/wrfcamx_build/wrfcamx_viz_server.py</code> on the HPC server,
+        then forward port <strong>5052</strong> via VS Code's <strong>PORTS</strong> tab.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="grid-2">
+        <div class="field">
+          <label>Domain to visualize</label>
+          <select id="wrfcamx_domain">
+            <option value="d01">d01 — All India (27km)</option>
+            <option value="d02">d02 — Delhi region (9km)</option>
+            <option value="d03">d03 — South India (9km)</option>
+            <option value="d04">d04 — West Bengal &amp; Odisha coast (9km)</option>
+          </select>
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="auto-center-btn" style="width:auto;padding:9px 18px;margin-top:0;" onclick="checkWrfcamxStatus()">
+            &#8635; Check output status
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wrfcamx-status-box" style="display:none; margin-top:1rem;">
+      <div class="metrics-row" id="wrfcamx-status-metrics"></div>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem;">
+      <button class="viz-btn" id="btn-wrfcamx-viz" onclick="runWrfcamxVisualize()">
+        &#127760;&nbsp; Visualize this domain
+      </button>
+    </div>
+
+    <div class="terminal-panel" id="wrfcamxviz-terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot" style="background:#f46060"></div>
+        <div class="terminal-dot" style="background:#f5a623;margin-left:5px"></div>
+        <div class="terminal-dot" style="background:#3dd68c;margin-left:5px"></div>
+        <span class="terminal-title">visualize_wrfcamx.py — HPC server</span>
+        <span class="terminal-status" id="wrfcamxviz-status">idle</span>
+      </div>
+      <div class="terminal-body" id="wrfcamxviz-output"></div>
+    </div>
+
+    <!-- Summary plots: LU/topo, PBL comparison, Kv Hovmoller, 3D Hovmoller x2 -->
+    <div class="gallery" id="wrfcamx-summary-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">Static &amp; domain-mean summary plots</div>
+      <div class="gallery-grid" id="wrfcamx-summary-grid"></div>
+    </div>
+
+    <!-- 2D surface time series -->
+    <div class="gallery" id="wrfcamx-2d-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">2D surface — T2, wind &amp; precipitation (per timestep)</div>
+      <div class="gallery-grid" id="wrfcamx-2d-grid"></div>
+    </div>
+
+    <!-- 3D surface-layer time series -->
+    <div class="gallery" id="wrfcamx-3dsfc-gallery">
+      <div class="gallery-header" style="margin-top:1.25rem;">3D fields — surface layer (per timestep)</div>
+      <div class="gallery-grid" id="wrfcamx-3dsfc-grid"></div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<script>
+const SERVER = 'http://localhost:5050';
+
+const PRESETS = {
+  // Coordinates verified directly from the actual geo_em.d0N.nc files used in the
+  // real HPC WRF run (checked via netCDF4, not assumed). d02-d04 use 9km, not 3km —
+  // the original preset resolutions here were never based on real geogrid output.
+  india27:     { lat:21.5,       lon:83.0,       dx:'27', we:130, sn:130, domain:'d01_27km',            out:'/home/ananya/WRF_PROJECTS/runs/d01_27km',            wrfDomain:'d01' },
+  delhi9:      { lat:27.334587,  lon:78.06797,   dx:'9',  we:100, sn:100, domain:'d02_9km_delhi',        out:'/home/ananya/WRF_PROJECTS/runs/d02_9km_delhi',        wrfDomain:'d02' },
+  southIndia9: { lat:13.9906845, lon:78.314575,  dx:'9',  we:100, sn:100, domain:'d03_9km_south_india',  out:'/home/ananya/WRF_PROJECTS/runs/d03_9km_south_india',  wrfDomain:'d03' },
+  wbOdisha9:   { lat:22.414818,  lon:87.685425,  dx:'9',  we:100, sn:100, domain:'d04_9km_wb_odisha',    out:'/home/ananya/WRF_PROJECTS/runs/d04_9km_wb_odisha',    wrfDomain:'d04' },
+};
+
+// Keep the last generated namelist in memory for the Run button
+let lastNamelist = '';
+
+/* ── PRESET LOADER ────────────────────────────────────────────── */
+function loadPreset(key, btn) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('output-section').classList.remove('visible');
+  resetTerminals();
+
+  const sel    = document.getElementById('dx_km');
+  const custom = document.getElementById('dx_km_custom');
+  const hint   = document.getElementById('dx_hint');
+
+  if (key === 'blank') {
+    document.getElementById('ref_lat').value = '';
+    document.getElementById('ref_lon').value = '';
+    document.getElementById('e_we').value    = '';
+    document.getElementById('e_sn').value    = '';
+    sel.style.display    = 'none';
+    custom.style.display = 'block';
+    custom.value         = '';
+    hint.style.display   = 'block';
+    document.getElementById('domain_key').style.display             = 'none';
+    document.getElementById('domain_key_custom').style.display      = 'block';
+    document.getElementById('domain_key_custom').value              = '';
+    document.getElementById('domain_key_hint').style.display        = 'block';
+    document.getElementById('domain_key_hint_preset').style.display = 'none';
+    document.getElementById('output_path').value       = '';
+    document.getElementById('output_path').placeholder = 'e.g. /home/ananya/WRF_PROJECTS/runs/my_domain';
+    const note = document.getElementById('wrf_preset_note');
+    if (note) note.style.display = 'none';
+  } else {
+    const p = PRESETS[key];
+    document.getElementById('ref_lat').value    = p.lat;
+    document.getElementById('ref_lon').value    = p.lon;
+    document.getElementById('e_we').value       = p.we;
+    document.getElementById('e_sn').value       = p.sn;
+    document.getElementById('map_proj').value   = 'mercator'; // all real presets use mercator — was previously left at whatever the dropdown last had
+    custom.style.display = 'none';
+    hint.style.display   = 'none';
+    sel.style.display    = 'block';
+    sel.value            = p.dx;
+    document.getElementById('domain_key').style.display             = 'block';
+    document.getElementById('domain_key').value                     = p.domain;
+    document.getElementById('domain_key_custom').style.display      = 'none';
+    document.getElementById('domain_key_hint').style.display        = 'none';
+    document.getElementById('domain_key_hint_preset').style.display = 'block';
+    document.getElementById('output_path').value       = p.out;
+    document.getElementById('output_path').placeholder = '';
+
+    // Continuation: this preset's location already has a real, completed WRF run.
+    // Pre-select the matching domain in the WRF Simulation Output section below,
+    // so visualizing "this location's weather" is a one-click follow-on from geogrid.
+    const wrfDomainSel = document.getElementById('wrf_domain');
+    if (wrfDomainSel && p.wrfDomain) {
+      wrfDomainSel.value = p.wrfDomain;
+      const note = document.getElementById('wrf_preset_note');
+      if (note) {
+        note.style.display = 'block';
+        note.textContent = `This location matches a completed WRF run (domain ${p.wrfDomain}) — scroll down to "WRF Simulation Output" and click "Visualize this domain" to see it.`;
+      }
+    }
+  }
+}
+
+/* ── ERROR HELPERS ────────────────────────────────────────────── */
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.style.display = 'block';
+}
+function clearError() {
+  const el = document.getElementById('error-msg');
+  el.textContent = ''; el.style.display = 'none';
+}
+
+function resetTerminals() {
+  setTerminal('geogrid', '', 'idle', false);
+  setTerminal('viz',     '', 'idle', false);
+  const gallery = document.getElementById('terrain-gallery');
+  gallery.classList.remove('visible');
+  document.getElementById('gallery-grid').innerHTML = '';
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-viz').disabled = true;
+  document.getElementById('btn-wrf').disabled = true;
+}
+
+/* ── GENERATE ─────────────────────────────────────────────────── */
+function generate() {
+  clearError();
+
+  const lat      = parseFloat(document.getElementById('ref_lat').value);
+  const lon      = parseFloat(document.getElementById('ref_lon').value);
+  const dx_sel   = document.getElementById('dx_km');
+  const dx_custom= document.getElementById('dx_km_custom');
+  const dx_km    = dx_sel.style.display === 'none'
+                     ? parseInt(dx_custom.value)
+                     : parseInt(dx_sel.value);
+  const we       = parseInt(document.getElementById('e_we').value);
+  const sn       = parseInt(document.getElementById('e_sn').value);
+  const start          = document.getElementById('start_date').value.trim();
+  const end            = document.getElementById('end_date').value.trim();
+  const map_proj       = document.getElementById('map_proj').value;
+  const geog_data_res  = document.getElementById('geog_data_res').value;
+  const interval_sec   = parseInt(document.getElementById('interval_seconds').value) || 10800;
+  const geog           = document.getElementById('geog_path').value.trim();
+  const out      = document.getElementById('output_path').value.trim();
+  const img      = document.getElementById('docker_image').value.trim();
+
+  // Read domain key — from dropdown (presets) or text input (custom)
+  const domainSel    = document.getElementById('domain_key');
+  const domainCustom = document.getElementById('domain_key_custom');
+  const domain = domainSel.style.display === 'none'
+                   ? domainCustom.value.trim()
+                   : domainSel.value;
+
+  if (!dx_km || dx_km <= 0)    { showError('Please enter a valid grid spacing (km).'); return; }
+  if (isNaN(lat) || isNaN(lon)){ showError('Please enter valid latitude and longitude.'); return; }
+  const dateRe = /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/;
+  if (!dateRe.test(start)) { showError('Start date must be YYYY-MM-DD_HH:MM:SS'); return; }
+  if (!dateRe.test(end))   { showError('End date must be YYYY-MM-DD_HH:MM:SS');   return; }
+  const startDt = new Date(start.replace('_', 'T'));
+  const endDt   = new Date(end.replace('_', 'T'));
+  if (endDt <= startDt)    { showError('End date must be after start date.'); return; }
+  if (!geog || !img)           { showError('Please fill in all path and image fields.'); return; }
+  if (!out)                    { showError('Please enter an output folder path.'); return; }
+  if (!domain)                 { showError('Please enter a domain key name.'); return; }
+
+  const dx_m = dx_km * 1000;
+
+  // Auto-update WRF time step when dx changes
+  const tsField = document.getElementById('wrf_time_step');
+  if (!tsField.dataset.auto || tsField.dataset.auto === 'true') {
+    tsField.value = 6 * dx_km;
+    tsField.dataset.auto = 'true';
+  }
+
+  // ── Validate nested domains ───────────────────────────────────
+  for (let i = 0; i < nestedDomains.length; i++) {
+    const d = nestedDomains[i];
+    const domNum = i + 2;
+    const parentWe = i === 0 ? we : nestedDomains[i-1].we;
+    const parentSn = i === 0 ? sn : nestedDomains[i-1].sn;
+    if (!d.we || d.we < 10) { showError(`d0${domNum}: Grid points W-E must be ≥ 10.`); return; }
+    if (!d.sn || d.sn < 10) { showError(`d0${domNum}: Grid points S-N must be ≥ 10.`); return; }
+    if ((d.we - 1) % d.ratio !== 0) {
+      const fix = Math.round((d.we - 1) / d.ratio) * d.ratio + 1;
+      showError(`d0${domNum}: (e_we − 1) = ${d.we-1} must be divisible by ratio ${d.ratio}. Try e_we = ${fix}.`);
+      return;
+    }
+    if ((d.sn - 1) % d.ratio !== 0) {
+      const fix = Math.round((d.sn - 1) / d.ratio) * d.ratio + 1;
+      showError(`d0${domNum}: (e_sn − 1) = ${d.sn-1} must be divisible by ratio ${d.ratio}. Try e_sn = ${fix}.`);
+      return;
+    }
+    if (d.iStart + (d.we - 1) / d.ratio > parentWe - 1) {
+      showError(`d0${domNum}: Domain exceeds parent in W-E. Reduce e_we or adjust i_parent_start.`); return;
+    }
+    if (d.jStart + (d.sn - 1) / d.ratio > parentSn - 1) {
+      showError(`d0${domNum}: Domain exceeds parent in S-N. Reduce e_sn or adjust j_parent_start.`); return;
+    }
+  }
+
+  // ── Build multi-domain arrays ─────────────────────────────────
+  const maxDom = 1 + nestedDomains.length;
+  const pad = (arr) => arr.map(v => String(v).padStart(4)).join(', ');
+
+  const parentIds   = [1, ...nestedDomains.map((_, i) => i + 1)];
+  const parentRats  = [1, ...nestedDomains.map(d => d.ratio)];
+  const iStarts     = [1, ...nestedDomains.map(d => d.iStart)];
+  const jStarts     = [1, ...nestedDomains.map(d => d.jStart)];
+  const eWeArr      = [we, ...nestedDomains.map(d => d.we)];
+  const eSnArr      = [sn, ...nestedDomains.map(d => d.sn)];
+  const dateList    = Array(maxDom).fill(`'${start}'`).join(', ');
+  const endList     = Array(maxDom).fill(`'${end}'`).join(', ');
+  const resList     = Array(maxDom).fill(`'${geog_data_res}'`).join(', ');
+
+  lastNamelist =
+`&share
+ wrf_core = 'ARW',
+ max_dom = ${maxDom},
+ start_date = ${dateList},
+ end_date   = ${endList},
+ interval_seconds = ${interval_sec}
+/
+&geogrid
+ parent_id         = ${pad(parentIds)},
+ parent_grid_ratio = ${pad(parentRats)},
+ i_parent_start    = ${pad(iStarts)},
+ j_parent_start    = ${pad(jStarts)},
+ e_we              = ${pad(eWeArr)},
+ e_sn              = ${pad(eSnArr)},
+ geog_data_res     = ${resList},
+ dx = ${dx_m},
+ dy = ${dx_m},
+ map_proj = '${map_proj}',
+ ref_lat   = ${lat.toFixed(1)},
+ ref_lon   = ${lon.toFixed(1)},
+ truelat1  = 10.0,
+ truelat2  = 30.0,
+ stand_lon = ${lon.toFixed(1)},
+ geog_data_path = '/wrf/WPS_GEOG'
+/
+&ungrib
+ out_format = 'WPS',
+ prefix = 'FILE',
+/
+&metgrid
+ fg_name = 'FILE'
+/`;
+
+  const dockerCmd =
+`docker run --rm \\
+  -v ${out}:/wrf/user-config \\
+  -v ${out}:/wrf/output \\
+  -v ${geog}:/wrf/WPS_GEOG \\
+  ${img} bash -c \\
+  "cp /wrf/user-config/namelist.wps /wrf/WPS/namelist.wps && \\
+   cd /wrf/WPS && ./geogrid.exe && \\
+   cp geo_em.d*.nc /wrf/output/"`;
+
+  document.getElementById('namelist-preview').textContent = lastNamelist;
+  document.getElementById('docker-cmd').textContent       = dockerCmd;
+
+  const blob = new Blob([lastNamelist], { type: 'text/plain' });
+  document.getElementById('download-link').href = URL.createObjectURL(blob);
+
+  document.getElementById('metrics-row').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">Resolution</div>
+      <div class="metric-value">${dx_km} km</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Center point</div>
+      <div class="metric-value" style="font-size:15px;">${lat.toFixed(1)}°N &nbsp;${lon.toFixed(1)}°E</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Grid size</div>
+      <div class="metric-value">${we} × ${sn}</div>
+    </div>
+  `;
+
+  const out_sec = document.getElementById('output-section');
+  out_sec.classList.add('visible');
+  out_sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Enable the run buttons now that we have a namelist
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-viz').disabled = false;
+  document.getElementById('btn-wrf').disabled = false;
+  resetTerminals();
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-viz').disabled = false;
+  document.getElementById('btn-wrf').disabled = false;
+}
+
+/* ── TERMINAL HELPERS ─────────────────────────────────────────── */
+function setTerminal(which, text, status, show) {
+  const panel  = document.getElementById(`${which}-terminal`);
+  const output = document.getElementById(`${which}-output`);
+  const badge  = document.getElementById(`${which}-status`);
+
+  if (show) panel.classList.add('visible');
+  else panel.classList.remove('visible');
+
+  output.innerHTML = text;
+  badge.textContent = status;
+  badge.className = 'terminal-status';
+  if (status === 'running') badge.classList.add('running');
+  else if (status === 'success') badge.classList.add('success');
+  else if (status === 'error') badge.classList.add('error');
+
+  // Auto-scroll to bottom
+  output.scrollTop = output.scrollHeight;
+}
+
+function appendTerminal(which, text) {
+  const output = document.getElementById(`${which}-output`);
+  output.textContent += text;
+  output.scrollTop = output.scrollHeight;
+}
+
+function colorizeOutput(raw) {
+  // Colorize key lines for readability
+  return raw
+    .replace(/\*\*\* Successful completion.*?\*\*\*/g,
+      '<span class="t-success">$&</span>')
+    .replace(/(ERROR|error|Error|FAILED|failed)/g,
+      '<span class="t-error">$&</span>')
+    .replace(/(===GEOGRID_DONE===)/g,
+      '<span class="t-success">$&</span>')
+    .replace(/^(Saved:|Processing:)/gm,
+      '<span class="t-success">$&</span>');
+}
+
+/* ── RUN GEOGRID ──────────────────────────────────────────────── */
+async function runGeogrid() {
+  if (!lastNamelist) {
+    showError('Click "Generate namelist" first.'); return;
+  }
+
+  const domainSel    = document.getElementById('domain_key');
+  const domainCustom = document.getElementById('domain_key_custom');
+  const domain = domainSel.style.display === 'none'
+                   ? domainCustom.value.trim()
+                   : domainSel.value;
+  const runBtn = document.getElementById('btn-run');
+  const vizBtn = document.getElementById('btn-viz');
+
+  runBtn.disabled = true;
+  vizBtn.disabled = true;
+
+  setTerminal('geogrid',
+    '<span class="t-cmd">$ docker run ananyahere/wrf-india:v2.1 ... geogrid.exe</span>\n',
+    'running', true);
+
+  // Show spinner in button
+  runBtn.innerHTML = '<span class="spinner"></span> Running geogrid…';
+
+  // Scroll terminal into view
+  document.getElementById('geogrid-terminal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch(`${SERVER}/run-geogrid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        domain,
+        namelist:    lastNamelist,
+        geog_path:   document.getElementById('geog_path').value.trim(),
+        output_path: document.getElementById('output_path').value.trim()
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setTerminal('geogrid',
+        `<span class="t-error">Server error: ${err.error || res.statusText}</span>`,
+        'error', true);
+      runBtn.innerHTML = '&#9654;&nbsp; Run geogrid in Docker';
+      runBtn.disabled = false;
+      vizBtn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    const colored = colorizeOutput(escapeHtml(data.output || ''));
+
+    if (data.success) {
+      setTerminal('geogrid', colored, 'success', true);
+    } else {
+      setTerminal('geogrid',
+        colored + '\n<span class="t-error">Geogrid did not complete successfully. Check output above.</span>',
+        'error', true);
+    }
+
+  } catch (e) {
+    setTerminal('geogrid',
+      `<span class="t-error">Could not reach server at ${SERVER}.\n\nMake sure you started:\n  python3 ~/wrf-runner/server.py\n\nError: ${e.message}</span>`,
+      'error', true);
+  }
+
+  runBtn.innerHTML = '&#9654;&nbsp; Run geogrid in Docker';
+  runBtn.disabled = false;
+  vizBtn.disabled = false;
+}
+
+/* ── RUN VISUALIZATION ────────────────────────────────────────── */
+async function runVisualize() {
+  const vizBtn = document.getElementById('btn-viz');
+  const runBtn = document.getElementById('btn-run');
+
+  vizBtn.disabled = true;
+  runBtn.disabled = true;
+
+  setTerminal('viz',
+    '<span class="t-cmd">$ docker run ananyahere/wrf-india:v2.1 python3 /wrf/visualize.py</span>\n',
+    'running', true);
+
+  vizBtn.innerHTML = '<span class="spinner"></span> Visualizing…';
+
+  document.getElementById('viz-terminal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch(`${SERVER}/run-visualize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        domain: document.getElementById('domain_key').style.display === 'none'
+          ? document.getElementById('domain_key_custom').value.trim()
+          : document.getElementById('domain_key').value,
+        output_path: document.getElementById('output_path').value.trim()
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setTerminal('viz',
+        `<span class="t-error">Server error: ${err.error || res.statusText}</span>`,
+        'error', true);
+      vizBtn.innerHTML = '&#127760;&nbsp; Visualize terrain';
+      vizBtn.disabled = false;
+      runBtn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    const colored = colorizeOutput(escapeHtml(data.output || ''));
+
+    setTerminal('viz', colored, data.success ? 'success' : 'error', true);
+
+    // Render images in gallery
+    if (data.png_files && data.png_files.length > 0) {
+      const grid    = document.getElementById('gallery-grid');
+      const gallery = document.getElementById('terrain-gallery');
+      grid.innerHTML = '';
+
+      data.png_files.forEach(path => {
+        // path looks like /image/d01_27km/terrain_plot.png
+        const parts    = path.split('/');
+        const domain   = parts[2];
+        const filename = parts[3];
+        const label    = `${domain} / ${filename}`;
+
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.innerHTML = `
+          <div class="gallery-item-label">${escapeHtml(label)}</div>
+          <img src="${SERVER}${path}?runs_base=${encodeURIComponent(document.getElementById('output_path').value.trim().replace(/\/[^\/]+$/, ''))}&t=${Date.now()}" alt="${escapeHtml(label)}"
+               onerror="this.style.display='none'">
+        `;
+        grid.appendChild(item);
+      });
+
+      gallery.classList.add('visible');
+      gallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+  } catch (e) {
+    setTerminal('viz',
+      `<span class="t-error">Could not reach server at ${SERVER}.\n\nMake sure you started:\n  python3 ~/wrf-runner/server.py\n\nError: ${e.message}</span>`,
+      'error', true);
+  }
+
+  vizBtn.innerHTML = '&#127760;&nbsp; Visualize terrain';
+  vizBtn.disabled = false;
+  runBtn.disabled = false;
+}
+
+/* ── COPY ─────────────────────────────────────────────────────── */
+function copyEl(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied ✓';
+    setTimeout(() => { btn.textContent = 'copy'; }, 1500);
+  });
+}
+
+/* ── ESCAPE HTML ──────────────────────────────────────────────── */
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/* ── NESTED DOMAINS STATE ─────────────────────────────────────── */
+let nestedDomains = [];
+
+function getDx() {
+  const sel = document.getElementById('dx_km');
+  const cus = document.getElementById('dx_km_custom');
+  return sel.style.display === 'none' ? (parseInt(cus.value) || 27) : parseInt(sel.value);
+}
+
+function addNestedDomain() {
+  const d1dx = getDx();
+  const idx  = nestedDomains.length;
+  // Cumulative ratio so far
+  const cumRatio = nestedDomains.reduce((acc, d) => acc * d.ratio, 1);
+  const defaultRatio = 3;
+  const resDx = (d1dx / cumRatio / defaultRatio).toFixed(1);
+  nestedDomains.push({ ratio: 3, we: 61, sn: 61, iStart: 10, jStart: 10 });
+  renderNestedDomains();
+}
+
+function removeNestedDomain(idx) {
+  nestedDomains.splice(idx, 1);
+  renderNestedDomains();
+}
+
+function updateNested(idx, key, val) {
+  if (key === 'ratio')  nestedDomains[idx].ratio  = parseInt(val);
+  if (key === 'we')     nestedDomains[idx].we     = parseInt(val);
+  if (key === 'sn')     nestedDomains[idx].sn     = parseInt(val);
+  if (key === 'iStart') nestedDomains[idx].iStart = parseInt(val);
+  if (key === 'jStart') nestedDomains[idx].jStart = parseInt(val);
+  renderNestedDomains();
+}
+
+function autoCenter(idx) {
+  const parentWe = idx === 0
+    ? (parseInt(document.getElementById('e_we').value) || 50)
+    : nestedDomains[idx-1].we;
+  const parentSn = idx === 0
+    ? (parseInt(document.getElementById('e_sn').value) || 50)
+    : nestedDomains[idx-1].sn;
+  const d = nestedDomains[idx];
+  const iS = Math.floor((parentWe - 1 - (d.we - 1) / d.ratio) / 2) + 1;
+  const jS = Math.floor((parentSn - 1 - (d.sn - 1) / d.ratio) / 2) + 1;
+  nestedDomains[idx].iStart = Math.max(1, iS);
+  nestedDomains[idx].jStart = Math.max(1, jS);
+  renderNestedDomains();
+}
+
+function renderNestedDomains() {
+  const container = document.getElementById('domain-cards');
+  const d1dx = getDx();
+  container.innerHTML = '';
+
+  let cumRatio = 1;
+  nestedDomains.forEach((dom, idx) => {
+    cumRatio *= dom.ratio;
+    const resDx  = (d1dx / cumRatio).toFixed(1);
+    const domNum = idx + 2;
+    const card   = document.createElement('div');
+    card.className = 'domain-card';
+    card.innerHTML = `
+      <div class="domain-card-header">
+        <span class="domain-label">d0${domNum}</span>
+        <button class="remove-domain-btn" onclick="removeNestedDomain(${idx})">&#10005; Remove</button>
+      </div>
+      <div class="grid-3">
+        <div class="field">
+          <label>Parent grid ratio</label>
+          <select id="nest_ratio_${idx}" onchange="updateNested(${idx},'ratio',this.value)">
+            <option value="3" ${dom.ratio===3?'selected':''}>3x</option>
+            <option value="5" ${dom.ratio===5?'selected':''}>5x</option>
+            <option value="7" ${dom.ratio===7?'selected':''}>7x</option>
+            <option value="9" ${dom.ratio===9?'selected':''}>9x</option>
+          </select>
+          <span class="nest-res-badge">&#8594; ${resDx} km</span>
+        </div>
+        <div class="field">
+          <label>Grid points W&#8211;E</label>
+          <input type="number" id="nest_we_${idx}" value="${dom.we}" min="10" step="1"
+            oninput="updateNested(${idx},'we',this.value)">
+          <span class="hint">(e_we &#8722; 1) must be divisible by ratio</span>
+        </div>
+        <div class="field">
+          <label>Grid points S&#8211;N</label>
+          <input type="number" id="nest_sn_${idx}" value="${dom.sn}" min="10" step="1"
+            oninput="updateNested(${idx},'sn',this.value)">
+          <span class="hint">(e_sn &#8722; 1) must be divisible by ratio</span>
+        </div>
+        <div class="field">
+          <label>i_parent_start</label>
+          <input type="number" id="nest_i_${idx}" value="${dom.iStart}" min="1"
+            oninput="updateNested(${idx},'iStart',this.value)">
+        </div>
+        <div class="field">
+          <label>j_parent_start</label>
+          <input type="number" id="nest_j_${idx}" value="${dom.jStart}" min="1"
+            oninput="updateNested(${idx},'jStart',this.value)">
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="auto-center-btn" onclick="autoCenter(${idx})">
+            &#8857; Auto-center within parent
+          </button>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+/* ── COLLAPSE TOGGLE ───────────────────────────────────────────── */
+function toggleCollapse(bodyId, arrowId) {
+  document.getElementById(bodyId).classList.toggle('open');
+  document.getElementById(arrowId).classList.toggle('open');
+}
+
+/* ── GENERATE WRF NAMELIST ─────────────────────────────────────── */
+function generateWRF() {
+  // Read d01 config
+  const lat    = parseFloat(document.getElementById('ref_lat').value);
+  const lon    = parseFloat(document.getElementById('ref_lon').value);
+  const we     = parseInt(document.getElementById('e_we').value);
+  const sn     = parseInt(document.getElementById('e_sn').value);
+  const start  = document.getElementById('start_date').value.trim();
+  const end    = document.getElementById('end_date').value.trim();
+  const dx_km  = getDx();
+  const iSec   = parseInt(document.getElementById('interval_seconds').value) || 10800;
+
+  if (isNaN(lat) || isNaN(lon) || !we || !sn) {
+    showError('Configure domain settings first (Step 2), then generate WRF namelist.'); return;
+  }
+  const dateRe = /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/;
+  if (!dateRe.test(start) || !dateRe.test(end)) {
+    showError('Fix date format first (Step 2).'); return;
+  }
+
+  // Physics options
+  const mp     = document.getElementById('mp_physics').value;
+  const raLw   = document.getElementById('ra_lw_physics').value;
+  const raSw   = document.getElementById('ra_sw_physics').value;
+  const cu     = document.getElementById('cu_physics').value;
+  const sfclay = document.getElementById('sf_sfclay_physics').value;
+  const sfsurf = document.getElementById('sf_surface_physics').value;
+  const pbl    = document.getElementById('bl_pbl_physics').value;
+  const nlcat  = document.getElementById('num_land_cat').value;
+  const ts     = parseInt(document.getElementById('wrf_time_step').value) || (6 * dx_km);
+  const hist   = document.getElementById('history_interval').value;
+  const frames = document.getElementById('frames_per_outfile').value;
+
+  // Build per-domain arrays
+  const maxDom     = 1 + nestedDomains.length;
+  const pad5 = (arr) => arr.map(v => String(v).padStart(5)).join(', ');
+
+  const eWeArr     = [we,  ...nestedDomains.map(d => d.we)];
+  const eSnArr     = [sn,  ...nestedDomains.map(d => d.sn)];
+  const parentIds  = [1,   ...nestedDomains.map((_, i) => i + 1)];
+  const parentRats = [1,   ...nestedDomains.map(d => d.ratio)];
+  const iStarts    = [1,   ...nestedDomains.map(d => d.iStart)];
+  const jStarts    = [1,   ...nestedDomains.map(d => d.jStart)];
+
+  // dx per domain (metres)
+  const dxArr = [dx_km * 1000];
+  let cr = 1;
+  nestedDomains.forEach(d => { cr *= d.ratio; dxArr.push((dx_km * 1000) / cr); });
+
+  // cu_physics: disable for domains < 4 km
+  const cuArr = dxArr.map(dx => (dx / 1000 < 4 ? 0 : parseInt(cu)));
+
+  // Run duration
+  const sdt  = new Date(start.replace('_', 'T'));
+  const edt  = new Date(end.replace('_', 'T'));
+  const diff = edt - sdt;
+  const rDays = Math.floor(diff / 86400000);
+  const rHrs  = Math.floor((diff % 86400000) / 3600000);
+  const rMins = Math.floor((diff % 3600000) / 60000);
+  const rSecs = Math.floor((diff % 60000) / 1000);
+
+  const rep = (v) => Array(maxDom).fill(v).join(', ');
+  const yr  = (dt) => dt.slice(0,4);
+  const mo  = (dt) => dt.slice(5,7);
+  const dy  = (dt) => dt.slice(8,10);
+  const hr  = (dt) => dt.slice(11,13);
+
+  const nml = `&time_control
+ run_days                            = ${rDays},
+ run_hours                           = ${rHrs},
+ run_minutes                         = ${rMins},
+ run_seconds                         = ${rSecs},
+ start_year                          = ${rep(yr(start))},
+ start_month                         = ${rep(mo(start))},
+ start_day                           = ${rep(dy(start))},
+ start_hour                          = ${rep(hr(start))},
+ end_year                            = ${rep(yr(end))},
+ end_month                           = ${rep(mo(end))},
+ end_day                             = ${rep(dy(end))},
+ end_hour                            = ${rep(hr(end))},
+ interval_seconds                    = ${iSec},
+ input_from_file                     = ${rep('.true.')},
+ history_interval                    = ${rep(hist)},
+ frames_per_outfile                  = ${rep(frames)},
+ restart                             = .false.,
+ restart_interval                    = 7200,
+ io_form_history                     = 2,
+ io_form_restart                     = 2,
+ io_form_input                       = 2,
+ io_form_boundary                    = 2,
+/
+
+&domains
+ time_step                           = ${ts},
+ time_step_fract_num                 = 0,
+ time_step_fract_den                 = 1,
+ max_dom                             = ${maxDom},
+ e_we                                = ${pad5(eWeArr)},
+ e_sn                                = ${pad5(eSnArr)},
+ e_vert                              = ${rep('   45')},
+ p_top_requested                     = 5000,
+ num_metgrid_levels                  = 34,
+ num_metgrid_soil_levels             = 4,
+ dx                                  = ${pad5(dxArr)},
+ dy                                  = ${pad5(dxArr)},
+ grid_id                             = ${pad5([...Array(maxDom)].map((_,i)=>i+1))},
+ parent_id                           = ${pad5(parentIds)},
+ i_parent_start                      = ${pad5(iStarts)},
+ j_parent_start                      = ${pad5(jStarts)},
+ parent_grid_ratio                   = ${pad5(parentRats)},
+ parent_time_step_ratio              = ${pad5(parentRats)},
+ feedback                            = 1,
+ smooth_option                       = 0,
+/
+
+&physics
+ mp_physics                          = ${rep(mp)},
+ ra_lw_physics                       = ${rep(raLw)},
+ ra_sw_physics                       = ${rep(raSw)},
+ radt                                = ${rep(30)},
+ sf_sfclay_physics                   = ${rep(sfclay)},
+ sf_surface_physics                  = ${rep(sfsurf)},
+ bl_pbl_physics                      = ${rep(pbl)},
+ bldt                                = ${rep(0)},
+ cu_physics                          = ${pad5(cuArr)},
+ cudt                                = ${rep(5)},
+ isfflx                              = 1,
+ ifsnow                              = 1,
+ icloud                              = 1,
+ surface_input_source                = 3,
+ num_soil_layers                     = 4,
+ num_land_cat                        = ${nlcat},
+ sf_urban_physics                    = ${rep(0)},
+/
+
+&dynamics
+ hybrid_opt                          = 2,
+ w_damping                           = 0,
+ diff_opt                            = 1,
+ km_opt                              = 4,
+ diff_6th_opt                        = 0,
+ diff_6th_factor                     = 0.12,
+ base_temp                           = 290.,
+ damp_opt                            = 3,
+ zdamp                               = 5000.,
+ dampcoef                            = 0.2,
+ khdif                               = 0,
+ kvdif                               = 0,
+ non_hydrostatic                     = ${rep('.true.')},
+ moist_adv_opt                       = ${rep(1)},
+ scalar_adv_opt                      = ${rep(1)},
+ gwd_opt                             = 1,
+/
+
+&bdy_control
+ spec_bdy_width                      = 5,
+ spec_zone                           = 1,
+ relax_zone                          = 4,
+ specified                           = ${[...Array(maxDom)].map((_,i)=>i===0?'.true.':'.false.').join(', ')},
+ nested                              = ${[...Array(maxDom)].map((_,i)=>i===0?'.false.':'.true.').join(', ')},
+/
+
+&namelist_quilt
+ nio_tasks_per_group                 = 0,
+ nio_groups                          = 1,
+/`;
+
+  document.getElementById('wrf-namelist-preview').textContent = nml;
+  document.getElementById('wrf-output-wrap').style.display = 'block';
+
+  const blob = new Blob([nml], { type: 'text/plain' });
+  document.getElementById('wrf-download-link').href = URL.createObjectURL(blob);
+
+  // Make sure output section is visible
+  document.getElementById('output-section').classList.add('visible');
+  document.getElementById('wrf-output-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ── WRF SIMULATION OUTPUT (HPC server, separate viz server) ──────────────── */
+const WRF_SERVER = 'http://localhost:5051';
+
+async function checkWrfStatus() {
+  clearError();
+  const box = document.getElementById('wrf-status-box');
+  const runDir = document.getElementById('wrf_run_dir').value.trim();
+
+  try {
+    const res = await fetch(`${WRF_SERVER}/wrf-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_dir: runDir })
+    });
+    const data = await res.json();
+
+    const runningBadge = data.running
+      ? `<span style="color:var(--green)">running (${data.process_count} processes)</span>`
+      : `<span style="color:var(--amber)">not running (0 processes — finished or not started)</span>`;
+
+    document.getElementById('wrf-status-metrics').innerHTML = `
+      <div class="metric">
+        <div class="metric-label">Status</div>
+        <div class="metric-value" style="font-size:14px;">${runningBadge}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">d01 / d02 files</div>
+        <div class="metric-value">${data.file_counts.d01} / ${data.file_counts.d02}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">d03 / d04 files</div>
+        <div class="metric-value">${data.file_counts.d03} / ${data.file_counts.d04}</div>
+      </div>
+    `;
+    document.getElementById('wrf-status-log').textContent =
+      (data.last_log_lines || []).join('\n') || '(no log lines captured — check completion via file counts above)';
+    box.style.display = 'block';
+
+  } catch (e) {
+    showError(`Could not reach WRF viz server at ${WRF_SERVER}. Make sure it's running on the HPC server (python3 ~/wrf_work/wrf_viz_server.py) and port 5051 is forwarded in VS Code's PORTS tab.\n\nError: ${e.message}`);
+  }
+}
+
+async function runWrfVisualize() {
+  clearError();
+  const domain    = document.getElementById('wrf_domain').value;
+  const runDir    = document.getElementById('wrf_run_dir').value.trim();
+  const outputDir = document.getElementById('wrf_output_dir').value.trim();
+  const btn       = document.getElementById('btn-wrf-viz');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Visualizing…';
+
+  setTerminal('wrfviz',
+    `<span class="t-cmd">$ python3 visualize_wrf_timeseries.py ${domain}  (on the HPC server)</span>\n`,
+    'running', true);
+  document.getElementById('wrfviz-terminal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch(`${WRF_SERVER}/run-visualize-wrf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain, run_dir: runDir, output_dir: outputDir })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setTerminal('wrfviz', `<span class="t-error">Server error: ${err.error || res.statusText}</span>`, 'error', true);
+      btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    const colored = colorizeOutput(escapeHtml(data.output || ''));
+    setTerminal('wrfviz', colored, data.success ? 'success' : 'error', true);
+
+    const summaryGrid = document.getElementById('wrf-summary-grid');
+    const summaryGallery = document.getElementById('wrf-summary-gallery');
+    summaryGrid.innerHTML = '';
+    if (data.summary_url) {
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.innerHTML = `
+        <div class="gallery-item-label">${escapeHtml(domain)} — domain-mean T2 &amp; precipitation over time</div>
+        <img src="${WRF_SERVER}${data.summary_url}?t=${Date.now()}" alt="summary">
+      `;
+      summaryGrid.appendChild(item);
+      summaryGallery.classList.add('visible');
+    }
+
+    const metGrid = document.getElementById('wrf-met-grid');
+    const metGallery = document.getElementById('wrf-met-gallery');
+    metGrid.innerHTML = '';
+    (data.png_files || []).forEach(path => {
+      const filename = path.split('/').pop();
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.innerHTML = `
+        <div class="gallery-item-label">${escapeHtml(filename)}</div>
+        <img src="${WRF_SERVER}${path}?t=${Date.now()}" alt="${escapeHtml(filename)}"
+             onerror="this.style.display='none'">
+      `;
+      metGrid.appendChild(item);
+    });
+    if ((data.png_files || []).length > 0) {
+      metGallery.classList.add('visible');
+      metGallery.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+  } catch (e) {
+    setTerminal('wrfviz',
+      `<span class="t-error">Could not reach WRF viz server at ${WRF_SERVER}.\n\nMake sure it's running on the HPC server:\n  python3 ~/wrf_work/wrf_viz_server.py\n\nand port 5051 is forwarded in VS Code's PORTS tab.\n\nError: ${e.message}</span>`,
+      'error', true);
+  }
+
+  btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+  btn.disabled = false;
+}
+
+/* ── WRFCAMx OUTPUT (HPC server, separate viz server on 5052) ─────────────── */
+const WRFCAMX_SERVER = 'http://localhost:5052';
+
+async function checkWrfcamxStatus() {
+  clearError();
+  const box = document.getElementById('wrfcamx-status-box');
+
+  try {
+    const res = await fetch(`${WRFCAMX_SERVER}/wrfcamx-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+
+    let html = '';
+    for (const d of ['d01', 'd02', 'd03', 'd04']) {
+      const s = data.file_status[d];
+      const allPresent = s.lu && s['2d'] && s['3d'] && s.kv;
+      const badge = allPresent
+        ? `<span style="color:var(--green)">complete</span>`
+        : `<span style="color:var(--amber)">incomplete (lu:${s.lu} 2d:${s['2d']} 3d:${s['3d']} kv:${s.kv})</span>`;
+      html += `
+        <div class="metric">
+          <div class="metric-label">${d}</div>
+          <div class="metric-value" style="font-size:13px;">${badge}</div>
+        </div>`;
+    }
+    document.getElementById('wrfcamx-status-metrics').innerHTML = html;
+    box.style.display = 'block';
+
+  } catch (e) {
+    showError(`Could not reach WRFCAMx viz server at ${WRFCAMX_SERVER}. Make sure it's running on the HPC server (python3 ~/WRF_PROJECTS/wrfcamx_build/wrfcamx_viz_server.py) and port 5052 is forwarded in VS Code's PORTS tab — test with a browser or PowerShell, not WSL.\n\nError: ${e.message}`);
+  }
+}
+
+function fillGallery(gridId, galleryId, urls, baseServer) {
+  const grid = document.getElementById(gridId);
+  const gallery = document.getElementById(galleryId);
+  grid.innerHTML = '';
+  (urls || []).forEach(path => {
+    const filename = path.split('/').pop();
+    const item = document.createElement('div');
+    item.className = 'gallery-item';
+    item.innerHTML = `
+      <div class="gallery-item-label">${escapeHtml(filename)}</div>
+      <img src="${baseServer}${path}?t=${Date.now()}" alt="${escapeHtml(filename)}"
+           onerror="this.style.display='none'">
+    `;
+    grid.appendChild(item);
+  });
+  if ((urls || []).length > 0) {
+    gallery.classList.add('visible');
+  }
+}
+
+async function runWrfcamxVisualize() {
+  clearError();
+  const domain = document.getElementById('wrfcamx_domain').value;
+  const btn    = document.getElementById('btn-wrfcamx-viz');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Visualizing…';
+
+  setTerminal('wrfcamxviz',
+    `<span class="t-cmd">$ python3 visualize_wrfcamx.py ${domain}  (on the HPC server — this includes 2D, 3D, Kv and LU output, can take a while)</span>\n`,
+    'running', true);
+  document.getElementById('wrfcamxviz-terminal').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const res = await fetch(`${WRFCAMX_SERVER}/run-visualize-wrfcamx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      setTerminal('wrfcamxviz', `<span class="t-error">Server error: ${err.error || res.statusText}</span>`, 'error', true);
+      btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    const colored = colorizeOutput(escapeHtml(data.output || ''));
+    setTerminal('wrfcamxviz', colored, data.success ? 'success' : 'error', true);
+
+    fillGallery('wrfcamx-summary-grid', 'wrfcamx-summary-gallery', data.summary_images, WRFCAMX_SERVER);
+    fillGallery('wrfcamx-2d-grid', 'wrfcamx-2d-gallery', data.timeseries_2d, WRFCAMX_SERVER);
+    fillGallery('wrfcamx-3dsfc-grid', 'wrfcamx-3dsfc-gallery', data.timeseries_3dsfc, WRFCAMX_SERVER);
+
+    if ((data.summary_images || []).length > 0) {
+      document.getElementById('wrfcamx-summary-gallery').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+  } catch (e) {
+    setTerminal('wrfcamxviz',
+      `<span class="t-error">Could not reach WRFCAMx viz server at ${WRFCAMX_SERVER}.\n\nMake sure it's running on the HPC server:\n  python3 ~/WRF_PROJECTS/wrfcamx_build/wrfcamx_viz_server.py\n\nand port 5052 is forwarded in VS Code's PORTS tab — test with a browser or PowerShell, not WSL.\n\nError: ${e.message}</span>`,
+      'error', true);
+  }
+
+  btn.innerHTML = '&#127760;&nbsp; Visualize this domain';
+  btn.disabled = false;
+}
+
+</script>
+</body>
+</html>
